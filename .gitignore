@@ -1,0 +1,12 @@
+# Build artifacts
+build/
+/mcc
+*.o
+*.d
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
