@@ -23,6 +23,7 @@ typedef struct mcc_core_arena mcc_core_arena;
  * @brief Creates a new memory arena instance.
  *
  * Allocates the initial internal structures required for the arena.
+ * The capacity the minimum capacity the arena allocates (it may allocate more)
  *
  * @return A valid pointer to the new arena.
  * @post The program terminates if allocation fails.
@@ -71,7 +72,7 @@ void *mcc_core_arena_allocate(mcc_core_arena *self, size_t size);
  *
  * Retains internal memory blocks to allow for rapid re-use.
  *
- * @param self The arena instance to clear.
+ * @param self The arena instance to clear. If NULL, this function does nothing
  */
 void mcc_core_arena_clear(mcc_core_arena *self);
 
