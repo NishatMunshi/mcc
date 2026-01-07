@@ -8,6 +8,7 @@
 
 int main(int argc, char **argv) {
     mcc_core_arena *permanent_arena = mcc_core_arena_construct(MCC_CORE_UTILS_MiB(1));
+    mcc_core_arena *scratch_arena = mcc_core_arena_construct(MCC_CORE_UTILS_KiB(1));
 
     if (argc < 1 && argv) {
         return 0;
@@ -17,6 +18,7 @@ int main(int argc, char **argv) {
 
     mcc_core_string_print(mcc_core_string_trim_whitespace(permanent_arena, compare), stdout);
 
+    mcc_core_arena_destruct(scratch_arena);
     mcc_core_arena_destruct(permanent_arena);
 
     return 0;

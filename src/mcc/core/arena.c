@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "mcc/core/error.h"
 
@@ -23,7 +24,7 @@ mcc_core_arena* mcc_core_arena_construct(size_t capacity) {
     // allocating memory for the handler itself
     mcc_core_arena* arena = malloc(_MCC_CORE_ARENA_ALIGN_UP(sizeof(mcc_core_arena)));
     if (!arena) {
-        mcc_core_error_fatal("failed to allocate memory for arena handler\n");
+        mcc_core_error_fatal("arena OOM: failed to allocate memory for arena handler\n");
     }
 
     // clip capacity
@@ -33,7 +34,7 @@ mcc_core_arena* mcc_core_arena_construct(size_t capacity) {
     // allocating memory for the handle
     arena->memory = malloc(capacity);
     if (!arena->memory) {
-        mcc_core_error_fatal("failed to allocate memory for arena\n");
+        mcc_core_error_fatal("arena OOM: failed to allocate %zu bytes for arena instance\n", capacity);
     }
 
     arena->capacity = capacity;
@@ -71,7 +72,11 @@ void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
     if (_mcc_core_arena_available(self, size)) {
         uintptr_t memory = (uintptr_t)(self->memory) + self->position;
         self->position += size;
-        return (void*)memory;
+
+        // zero out the requested block
+        void* ptr = (void*)memory;
+        memset(ptr, 0, size);
+        return ptr;
     }
 
     // if sufficient memory is not available in this arena, ask for it from next

@@ -7,16 +7,21 @@
 #include "mcc/core/error.h"
 
 struct mcc_core_string {
-    char* data;
     size_t length;
+    char* data;
 };
 
 // constructors
 mcc_core_string* mcc_core_string_construct_from_c_string(mcc_core_arena* arena, char* c_string) {
     mcc_core_string* string = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
 
-    string->data = c_string;
-    string->length = strlen(c_string);
+    size_t length = strlen(c_string);
+
+    // we allocate 1 extra byte to respect the c style null terminator
+    string->data = MCC_CORE_ARENA_ALLOCATE(arena, char, length + 1);
+    memcpy(string->data, c_string, length + 1);
+
+    string->length = length;
 
     return string;
 }
@@ -24,7 +29,9 @@ mcc_core_string* mcc_core_string_construct_from_c_string(mcc_core_arena* arena, 
 mcc_core_string* mcc_core_string_construct_from_range(mcc_core_arena* arena, char* start, size_t length) {
     mcc_core_string* string = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
 
-    string->data = start;
+    string->data = MCC_CORE_ARENA_ALLOCATE(arena, char, length);
+    memcpy(string->data, start, length);
+
     string->length = length;
 
     return string;
@@ -77,10 +84,17 @@ uint64_t mcc_core_string_hash(const mcc_core_string* self) {
 
 // utilities
 mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, const mcc_core_string* self, size_t begin, size_t length) {
-    if (self->length < begin + length) {
-        mcc_core_error_fatal("substring out of bound");
+    // 1. Check if 'begin' itself is out of bounds
+    if (begin > self->length) {
+        mcc_core_error_fatal("substring: 'begin' index out of bounds");
     }
 
+    // 2. Check if 'length' goes past the end (Safe subtraction prevents overflow)
+    if (length > self->length - begin) {
+        mcc_core_error_fatal("substring: length exceeds string bounds");
+    }
+
+    // 3. Delegate to the range constructor (This correctly copies/Owns the memory)
     char* start = self->data + begin;
     return mcc_core_string_construct_from_range(arena, start, length);
 }
@@ -89,14 +103,13 @@ static mcc_core_string* _mcc_core_string_construct_empty(mcc_core_arena* arena) 
     return mcc_core_string_construct_from_range(arena, NULL, 0);
 }
 
-static bool _mcc_core_string_is_empty(const mcc_core_string* self) {
+static bool _mcc_core_string_empty(const mcc_core_string* self) {
     return self->length == 0;
 }
 
 mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, const mcc_core_string* self) {
-    if (_mcc_core_string_is_empty(self)) {
-        return _mcc_core_string_construct_empty(arena);
-    }
+    // We don't need to check for empty explicitly.
+    // If self is empty, length starts at 0, loops skip, and we make a new empty string.
 
     size_t begin = 0;
     size_t length = self->length;
@@ -112,6 +125,7 @@ mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, const mc
         length--;
     }
 
+    // Always returns a new string on the provided 'arena'
     return mcc_core_string_construct_from_range(arena, self->data + begin, length);
 }
 
