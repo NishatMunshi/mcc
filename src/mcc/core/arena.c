@@ -20,7 +20,6 @@ struct mcc_core_arena {
 };
 
 mcc_core_arena* mcc_core_arena_construct(size_t capacity) {
-    printf("constructor called for capacity = %zu\n", capacity);
     // allocating memory for the handler itself
     mcc_core_arena* arena = malloc(_MCC_CORE_ARENA_ALIGN_UP(sizeof(mcc_core_arena)));
     if (!arena) {
@@ -44,50 +43,48 @@ mcc_core_arena* mcc_core_arena_construct(size_t capacity) {
     return arena;
 }
 
-void mcc_core_arena_destruct(mcc_core_arena* arena) {
-    printf("destructor called for arena = %p\n", arena);
+void mcc_core_arena_destruct(mcc_core_arena* self) {
     // base case
-    if (!arena) {
+    if (!self) {
         return;
     }
 
-    mcc_core_arena_destruct(arena->next);
-    free(arena->memory);
-    free(arena);
+    mcc_core_arena_destruct(self->next);
+    free(self->memory);
+    free(self);
 }
 
-static bool _mcc_core_arena_available(mcc_core_arena* arena, size_t size) {
+static bool _mcc_core_arena_available(mcc_core_arena* self, size_t size) {
     // align size
     size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
-    size_t available = arena->capacity - arena->position;
+    size_t available = self->capacity - self->position;
 
     return available >= size;
 }
 
-void* mcc_core_arena_allocate(mcc_core_arena* arena, size_t size) {
-    printf("allocator called for arena = %p and size = %zu\n", arena, size);
+void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
     // align size
     size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
     // check for availability in this arena (base case)
-    if (_mcc_core_arena_available(arena, size)) {
-        uintptr_t memory = (uintptr_t)(arena->memory) + arena->position;
-        arena->position += size;
+    if (_mcc_core_arena_available(self, size)) {
+        uintptr_t memory = (uintptr_t)(self->memory) + self->position;
+        self->position += size;
         return (void*)memory;
     }
 
     // if sufficient memory is not available in this arena, ask for it from next
-    arena->next = arena->next ? arena->next : mcc_core_arena_construct(size);
-    return mcc_core_arena_allocate(arena->next, size);
+    self->next = self->next ? self->next : mcc_core_arena_construct(size);
+    return mcc_core_arena_allocate(self->next, size);
 }
 
-void mcc_core_arena_clear(mcc_core_arena* arena) {
+void mcc_core_arena_clear(mcc_core_arena* self) {
     // base case
-    if (!arena) {
+    if (!self) {
         return;
     }
 
-    mcc_core_arena_clear(arena->next);
-    arena->position = 0;
+    mcc_core_arena_clear(self->next);
+    self->position = 0;
 }
