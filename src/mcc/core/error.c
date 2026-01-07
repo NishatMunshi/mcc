@@ -8,11 +8,11 @@ void mcc_core_error_fatal(const char *format, ...) {
     va_list args;
     va_start(args, format);
 
-    fprintf(stderr, "[FATAL]: ");
-    vprintf(format, args);
+    fprintf(stderr, "mcc: fatal error: ");
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
 
     va_end(args);
+
     exit(1);
 }
-
-// void mcc_core_error_report() {}

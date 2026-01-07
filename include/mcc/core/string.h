@@ -9,14 +9,14 @@
 #include "mcc/core/arena.h"
 
 /**
- * @brief Immutable, length-prefixed string slice.
+ * @brief Immutable, len-prefixed string slice.
  *
  * This structure represents a managed string of characters.
  * It is designed to be allocated within an `mcc_core_arena`.
- * length is the number of characters excluding any null at the end
+ * len is the number of characters excluding any null at the end
  *
  * Unlike standard C strings, these strings:
- * 1. Store their length explicitly, allowing for O(1) length checks.
+ * 1. Store their len explicitly, allowing for O(1) len checks.
  * 2. Are generally immutable once constructed.
  * 3. May or may not be null-terminated internally (dependant on implementation),
  * so always use the provided print/compare functions rather than raw C functions.
@@ -30,28 +30,28 @@ typedef struct mcc_core_string mcc_core_string;
 /* --- Constructors --- */
 
 /**
- * @brief Creates a new string by copying a standard null-terminated C string.
- *
- * Deep copies the content of `c_string` into the provided `arena`.
- *
- * @param arena The arena to allocate the new string data into.
- * @param c_string A null-terminated C string. Must not be NULL.
- * @return A new string instance containing a copy of the data (Never NULL).
- */
-mcc_core_string* mcc_core_string_construct_from_c_string(mcc_core_arena* arena, char* c_string);
-
-/**
  * @brief Creates a new string from a specific memory range.
  *
- * Deep copies `length` bytes starting from `start` into the provided `arena`.
+ * Deep copies `len` bytes starting from `start` into the provided `arena`.
  * This is useful for creating strings from buffers that are not null-terminated.
  *
  * @param arena The arena to allocate the new string data into.
  * @param start Pointer to the start of the character data.
- * @param length The number of bytes to copy.
+ * @param len The number of bytes to copy.
  * @return A new string instance containing a copy of the range (Never NULL).
  */
-mcc_core_string* mcc_core_string_construct_from_range(mcc_core_arena* arena, char* start, size_t length);
+mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, size_t len);
+
+/**
+ * @brief Creates a new string by copying a standard null-terminated C string.
+ *
+ * Deep copies the content of `cstr` into the provided `arena`.
+ *
+ * @param arena The arena to allocate the new string data into.
+ * @param cstr A null-terminated C string. Must not be NULL.
+ * @return A new string instance containing a copy of the data (Never NULL).
+ */
+mcc_core_string* mcc_core_string_construct_from_cstr(mcc_core_arena* arena, char* cstr);
 
 /* --- Comparators --- */
 
@@ -60,18 +60,18 @@ mcc_core_string* mcc_core_string_construct_from_range(mcc_core_arena* arena, cha
  *
  * @param self The first string.
  * @param other The second string.
- * @return true if lengths match and byte content is identical, false otherwise.
+ * @return true if lens match and byte content is identical, false otherwise.
  */
-bool mcc_core_string_equals_string(const mcc_core_string* self, const mcc_core_string* other);
+bool mcc_core_string_equals(mcc_core_string* self, mcc_core_string* other);
 
 /**
  * @brief Checks if an mcc string matches a standard C string.
  *
  * @param self The mcc string.
- * @param c_string A null-terminated C string.
- * @return true if the mcc string matches the content of the c_string.
+ * @param cstr A null-terminated C string.
+ * @return true if the mcc string matches the content of the cstr.
  */
-bool mcc_core_string_equals_c_string(const mcc_core_string* self, const char* c_string);
+bool mcc_core_string_equals_cstr(mcc_core_string* self, char* cstr);
 
 /**
  * @brief Checks if the string starts with the specified prefix.
@@ -80,7 +80,16 @@ bool mcc_core_string_equals_c_string(const mcc_core_string* self, const char* c_
  * @param prefix The prefix string to look for.
  * @return true if `self` begins with the exact sequence of `prefix`.
  */
-bool mcc_core_string_starts_with(const mcc_core_string* self, const mcc_core_string* prefix);
+bool mcc_core_string_starts_with(mcc_core_string* self, mcc_core_string* prefix);
+
+/**
+ * @brief Checks if the string starts with the specified prefix.
+ *
+ * @param self The string to check.
+ * @param prefix The prefix string to look for. (c string)
+ * @return true if `self` begins with the exact sequence of `prefix`.
+ */
+bool mcc_core_string_starts_with_cstr(mcc_core_string* self, char* prefix);
 
 /* --- Hashing --- */
 
@@ -93,7 +102,7 @@ bool mcc_core_string_starts_with(const mcc_core_string* self, const mcc_core_str
  * @param self The string to hash.
  * @return A 64-bit hash value.
  */
-uint64_t mcc_core_string_hash(const mcc_core_string* self);
+uint64_t mcc_core_string_hash(mcc_core_string* self);
 
 /* --- Utilities --- */
 
@@ -105,10 +114,10 @@ uint64_t mcc_core_string_hash(const mcc_core_string* self);
  * @param arena The arena to allocate the new substring into.
  * @param self The source string.
  * @param begin The zero-based start index (inclusive).
- * @param end The length of the required substring.
- * @return A new string containing `length` characters starting from `begin` (Never NULL).
+ * @param end The len of the required substring.
+ * @return A new string containing `len` characters starting from `begin` (Never NULL).
  */
-mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, const mcc_core_string* self, size_t begin, size_t length);
+mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_string* self, size_t begin, size_t len);
 
 /**
  * @brief Creates a new string with leading and trailing whitespace removed.
@@ -120,22 +129,22 @@ mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, const mcc_core
  * @param self The source string.
  * @return A new string with whitespace stripped from both ends (Never NULL).
  */
-mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, const mcc_core_string* self);
+mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core_string* self);
 
 /**
  * @brief Prints the string content to the specified output stream.
  *
  * @param self The string to print.
- * @param output_stream The file stream (e.g., stdout, stderr).
+ * @param stream The file stream (e.g., stdout, stderr).
  */
-void mcc_core_string_print(const mcc_core_string* self, FILE* output_stream);
+void mcc_core_string_print(mcc_core_string* self, FILE* stream);
 
 /**
  * @brief Prints the string content followed by a newline to the output stream.
  *
  * @param self The string to print.
- * @param output_stream The file stream (e.g., stdout, stderr).
+ * @param stream The file stream (e.g., stdout, stderr).
  */
-void mcc_core_string_println(const mcc_core_string* self, FILE* output_stream);
+void mcc_core_string_println(mcc_core_string* self, FILE* stream);
 
 #endif  // MCC_CORE_STRING_H

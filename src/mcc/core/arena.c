@@ -115,16 +115,16 @@ static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
 /* --- Public Implementation --- */
 
 mcc_core_arena* mcc_core_arena_construct() {
-    mcc_core_arena* arena = (mcc_core_arena*)malloc(sizeof(mcc_core_arena));
-    if (arena == NULL) {
+    mcc_core_arena* self = (mcc_core_arena*)malloc(sizeof(mcc_core_arena));
+    if (self == NULL) {
         mcc_core_error_fatal("Arena OOM: Failed to allocate arena handle");
     }
 
     _mcc_arena_block* first = _mcc_core_arena_block_create(_MCC_CORE_ARENA_SIZE_DEFAULT);
-    arena->first = first;
-    arena->current = first;
+    self->first = first;
+    self->current = first;
 
-    return arena;
+    return self;
 }
 
 void mcc_core_arena_destruct(mcc_core_arena* self) {

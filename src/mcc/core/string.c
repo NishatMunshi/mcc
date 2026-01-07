@@ -7,104 +7,93 @@
 #include "mcc/core/error.h"
 
 struct mcc_core_string {
-    size_t length;
+    size_t len;
     char* data;
 };
 
-// constructors
-mcc_core_string* mcc_core_string_construct_from_c_string(mcc_core_arena* arena, char* c_string) {
-    // debug safety
-    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_c_string: arena is NULL");
-    if (c_string == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_c_string: c_string is NULL");
-
-    mcc_core_string* string = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
-
-    size_t length = strlen(c_string);
-
-    // we allocate 1 extra byte to respect the c style null terminator
-    string->data = MCC_CORE_ARENA_ALLOCATE(arena, char, length + 1);
-    memcpy(string->data, c_string, length + 1);
-
-    // Always null-terminate
-    string->data[length] = '\0';
-    string->length = length;
-
-    return string;
-}
-
-mcc_core_string* mcc_core_string_construct_from_range(mcc_core_arena* arena, char* start, size_t length) {
+mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, size_t len) {
     // debug safety
     if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_range: arena is NULL");
     // Only crash if user asks to copy data from NULL
-    if (length > 0 && start == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_range: start is NULL with non-zero length");
+    if (len > 0 && start == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_range: start is NULL with non-zero len");
 
-    mcc_core_string* string = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
-    string->data = MCC_CORE_ARENA_ALLOCATE(arena, char, length + 1);
+    mcc_core_string* self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
+    self->data = MCC_CORE_ARENA_ALLOCATE(arena, char, len + 1);
 
-    if (length > 0) {
-        memcpy(string->data, start, length);
+    if (len > 0) {
+        memcpy(self->data, start, len);
     }
 
-    string->data[length] = '\0';
-    string->length = length;
-    return string;
+    self->data[len] = '\0';
+    self->len = len;
+    return self;
+}
+
+mcc_core_string* mcc_core_string_construct_from_cstr(mcc_core_arena* arena, char* cstr) {
+    // debug safety
+    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_cstr: arena is NULL");
+    if (cstr == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_cstr: cstr is NULL");
+
+    return mcc_core_string_construct(arena, cstr, strlen(cstr));
 }
 
 // comparators
-bool mcc_core_string_equals_string(const mcc_core_string* self, const mcc_core_string* other) {
+bool mcc_core_string_equals(mcc_core_string* self, mcc_core_string* other) {
     // debug safety
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_equals_string: self is NULL");
     if (other == NULL) mcc_core_error_fatal("mcc_core_string_equals_string: other is NULL");
 
-    if (self->length != other->length) {
+    if (self->len != other->len) {
         return false;
     }
 
-    if (self->length == 0) {
+    if (self->len == 0) {
         return true;
     }
 
-    return !memcmp(self->data, other->data, self->length);
+    return !memcmp(self->data, other->data, self->len);
 }
 
-bool mcc_core_string_equals_c_string(const mcc_core_string* self, const char* c_string) {
+bool mcc_core_string_equals_cstr(mcc_core_string* self, char* cstr) {
     // debug safety
-    if (self == NULL) mcc_core_error_fatal("mcc_core_string_equals_c_string: self is NULL");
-    if (c_string == NULL) mcc_core_error_fatal("mcc_core_string_equals_c_string: c_string is NULL");
+    if (self == NULL) mcc_core_error_fatal("mcc_core_string_equals_cstr: self is NULL");
+    if (cstr == NULL) mcc_core_error_fatal("mcc_core_string_equals_cstr: cstr is NULL");
 
-    size_t c_string_length = strlen(c_string);
+    mcc_core_string mcc_cstr = {.data = cstr, .len = strlen(cstr)};
 
-    if (self->length != c_string_length) {
+    return mcc_core_string_equals(self, &mcc_cstr);
+}
+
+bool mcc_core_string_starts_with(mcc_core_string* self, mcc_core_string* prefix) {
+    // debug safety
+    if (self == NULL) mcc_core_error_fatal("mcc_core_string_starts_with_string: self is NULL");
+    if (prefix == NULL) mcc_core_error_fatal("mcc_core_string_starts_with_string: prefix is NULL");
+
+    if (self->len < prefix->len) {
         return false;
     }
 
-    if (self->length == 0) {
-        return true;
-    }
-
-    return !memcmp(self->data, c_string, self->length);
+    return memcmp(self->data, prefix->data, prefix->len) == 0;
 }
 
-bool mcc_core_string_starts_with(const mcc_core_string* self, const mcc_core_string* prefix) {
+bool mcc_core_string_starts_with_cstr(mcc_core_string* self, char* prefix) {
     // debug safety
-    if (self == NULL) mcc_core_error_fatal("mcc_core_string_starts_with: self is NULL");
-    if (prefix == NULL) mcc_core_error_fatal("mcc_core_string_starts_with: prefix is NULL");
+    if (self == NULL) mcc_core_error_fatal("mcc_core_string_starts_with_cstr: self is NULL");
+    if (prefix == NULL) mcc_core_error_fatal("mcc_core_string_starts_with_cstr: prefix is NULL");
 
-    if (self->length < prefix->length) {
-        return false;
-    }
+    mcc_core_string mcc_prefix = {.data = prefix, .len = strlen(prefix)};
 
-    return memcmp(self->data, prefix->data, prefix->length) == 0;
+    return mcc_core_string_starts_with(self, &mcc_prefix);
 }
 
 // hashing - FNV-1a
-uint64_t mcc_core_string_hash(const mcc_core_string* self) {
+uint64_t mcc_core_string_hash(mcc_core_string* self) {
     // debug safety
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_hash: self is NULL");
 
     uint64_t hash = 0xcbf29ce484222325;
 
-    for (size_t i = 0; i < self->length; ++i) {
+    for (size_t i = 0; i < self->len; ++i) {
         hash = hash ^ (uint8_t)(self->data[i]);
         hash = hash * 0x100000001b3;
     }
@@ -113,68 +102,68 @@ uint64_t mcc_core_string_hash(const mcc_core_string* self) {
 }
 
 // utilities
-mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, const mcc_core_string* self, size_t begin, size_t length) {
+mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_string* self, size_t begin, size_t len) {
     // debug safety
     if (arena == NULL) mcc_core_error_fatal("mcc_core_string_substring: arena is NULL");
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_substring: self is NULL");
     // begin == 0 is perfectly valid
-    // length == 0 is perfectly valid (empty string is a substring of all valid strings)
+    // len == 0 is perfectly valid (empty string is a substring of all valid strings)
 
     // 1. Check if 'begin' itself is out of bounds
-    if (begin > self->length) {
+    if (begin > self->len) {
         mcc_core_error_fatal("mcc_core_string_substring: 'begin' index out of bounds");
     }
 
-    // 2. Check if 'length' goes past the end (Safe subtraction prevents overflow)
-    if (length > self->length - begin) {
-        mcc_core_error_fatal("mcc_core_string_substring: length exceeds string bounds");
+    // 2. Check if 'len' goes past the end (Safe subtraction prevents overflow)
+    if (len > self->len - begin) {
+        mcc_core_error_fatal("mcc_core_string_substring: len exceeds string bounds");
     }
 
     // 3. Delegate to the range constructor (This correctly copies/Owns the memory)
-    // length == 0 is handled inside the constructor safely
+    // len == 0 is handled inside the constructor safely
     char* start = self->data + begin;
-    return mcc_core_string_construct_from_range(arena, start, length);
+    return mcc_core_string_construct(arena, start, len);
 }
 
-mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, const mcc_core_string* self) {
+mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core_string* self) {
     // debug safety
     if (arena == NULL) mcc_core_error_fatal("mcc_core_string_trim_whitespace: arena is NULL");
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_trim_whitespace: self is NULL");
 
     // We don't need to check for empty explicitly.
-    // If self is empty, length starts at 0, loops skip, and we make a new empty string.
+    // If self is empty, len starts at 0, loops skip, and we make a new empty string.
 
     size_t begin = 0;
-    size_t length = self->length;
+    size_t len = self->len;
 
     // trim beginning
-    while (length > 0 && isspace((unsigned char)self->data[begin])) {
+    while (len > 0 && isspace((unsigned char)self->data[begin])) {
         begin++;
-        length--;
+        len--;
     }
 
     // trim end
-    while (length > 0 && isspace((unsigned char)self->data[begin + length - 1])) {
-        length--;
+    while (len > 0 && isspace((unsigned char)self->data[begin + len - 1])) {
+        len--;
     }
 
     // Always returns a new string on the provided 'arena'
-    return mcc_core_string_construct_from_range(arena, self->data + begin, length);
+    return mcc_core_string_construct(arena, self->data + begin, len);
 }
 
-void mcc_core_string_print(const mcc_core_string* self, FILE* output_stream) {
+void mcc_core_string_print(mcc_core_string* self, FILE* stream) {
     // debug safety
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_print: self is NULL");
-    if (output_stream == NULL) mcc_core_error_fatal("mcc_core_string_print: output_stream is NULL");
+    if (stream == NULL) mcc_core_error_fatal("mcc_core_string_print: stream is NULL");
 
-    fwrite(self->data, 1, self->length, output_stream);
+    fwrite(self->data, 1, self->len, stream);
 }
 
-void mcc_core_string_println(const mcc_core_string* self, FILE* output_stream) {
+void mcc_core_string_println(mcc_core_string* self, FILE* stream) {
     // debug safety
     if (self == NULL) mcc_core_error_fatal("mcc_core_string_print: self is NULL");
-    if (output_stream == NULL) mcc_core_error_fatal("mcc_core_string_print: output_stream is NULL");
+    if (stream == NULL) mcc_core_error_fatal("mcc_core_string_print: stream is NULL");
 
-    fwrite(self->data, 1, self->length, output_stream);
-    fputc('\n', output_stream);
+    fwrite(self->data, 1, self->len, stream);
+    fputc('\n', stream);
 }
