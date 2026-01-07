@@ -3,116 +3,172 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "mcc/core/error.h"
 
+/* --- Configuration Macros --- */
+
 #define _MCC_CORE_ARENA_SIZE_DEFAULT (MCC_CORE_UTILS_MiB(1))
 #define _MCC_CORE_ARENA_ALIGNMENT_BYTES (_Alignof(max_align_t))
-#define _MCC_CORE_ARENA_ALIGN_UP(number) (((number) + _MCC_CORE_ARENA_ALIGNMENT_BYTES - 1) & ~(_MCC_CORE_ARENA_ALIGNMENT_BYTES - 1))
+
+#define _MCC_CORE_ARENA_ALIGN_UP(number) \
+    (((number) + _MCC_CORE_ARENA_ALIGNMENT_BYTES - 1) & ~(_MCC_CORE_ARENA_ALIGNMENT_BYTES - 1))
+
+/* --- Internal Structures --- */
+
+typedef struct _mcc_arena_block {
+    struct _mcc_arena_block* next;
+    size_t capacity;
+    size_t pos;
+    _Alignas(max_align_t) uint8_t data[];
+} _mcc_arena_block;
 
 struct mcc_core_arena {
-    void* memory;
-    size_t capacity;
-    size_t position;
-    mcc_core_arena* next;
+    _mcc_arena_block* first;
+    _mcc_arena_block* current;
 };
 
-mcc_core_arena* mcc_core_arena_construct(size_t capacity) {
-    if (capacity == 0) {
-        mcc_core_error_fatal("mcc_core_arena_construct: arena of capacity zero requested");
+/* --- Private Helper Functions --- */
+
+/**
+ * @brief Allocates a raw new block from the OS.
+ */
+static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
+    size_t total_size = sizeof(_mcc_arena_block) + capacity;
+    _mcc_arena_block* block = (_mcc_arena_block*)malloc(total_size);
+
+    if (block == NULL) {
+        mcc_core_error_fatal("Arena OOM: Failed to allocate block of size %zu", total_size);
     }
 
-    // allocating memory for the handler itself
-    mcc_core_arena* arena = malloc(_MCC_CORE_ARENA_ALIGN_UP(sizeof(mcc_core_arena)));
+    block->next = NULL;
+    block->capacity = capacity;
+    block->pos = 0;
+    return block;
+}
+
+/**
+ * @brief Attempts to allocate from a specific block.
+ * * @return Pointer to memory if successful, NULL if the block is full.
+ */
+static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size) {
+    // Explicit Bound Check: The check happens right here, before we touch memory.
+    if (block->pos + size > block->capacity) {
+        return NULL;
+    }
+
+    void* ptr = block->data + block->pos;
+    block->pos += size;
+    memset(ptr, 0, size);
+    return ptr;
+}
+
+/**
+ * @brief Ensures the arena has a 'current' block capable of fitting 'needed_size'.
+ * * This either:
+ * 1. Reuses the existing next block if it fits.
+ * 2. Allocates a new block and inserts it into the chain.
+ */
+static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
+    _mcc_arena_block* cur = self->current;
+
+    // Strategy 1: Check if we have a 'next' block from a previous reuse
+    if (cur->next != NULL) {
+        _mcc_arena_block* next = cur->next;
+
+        // We must strictly check if the reused block is big enough.
+        if (next->capacity >= needed_size) {
+            next->pos = 0;         // Reset it
+            self->current = next;  // Use it
+            return;
+        }
+
+        // If 'next' exists but is too small, we cannot use it.
+        // We fall through to Strategy 2 (Insert a new larger block).
+    }
+
+    // Strategy 2: Allocate a new block
+    size_t next_capacity = MCC_CORE_UTILS_MAX(_MCC_CORE_ARENA_SIZE_DEFAULT, needed_size);
+    _mcc_arena_block* new_block = _mcc_core_arena_block_create(next_capacity);
+
+    //
+    // Insert the new block into the chain.
+    // usage: A (cur) -> B (next, too small)
+    // becomes: A (cur) -> New -> B
+    // This preserves B for potential future use or correct destruction.
+    new_block->next = cur->next;
+    cur->next = new_block;
+
+    self->current = new_block;
+}
+
+/* --- Public Implementation --- */
+
+mcc_core_arena* mcc_core_arena_construct() {
+    mcc_core_arena* arena = (mcc_core_arena*)malloc(sizeof(mcc_core_arena));
     if (arena == NULL) {
-        mcc_core_error_fatal("mcc_core_arena_construct: failed to allocate memory for arena handler of requested capacity = %zu\n", capacity);
+        mcc_core_error_fatal("Arena OOM: Failed to allocate arena handle");
     }
 
-    // clip capacity
-    size_t capacity_clipped = MCC_CORE_UTILS_MAX(capacity, _MCC_CORE_ARENA_SIZE_DEFAULT);
-    size_t capacity_aligned = _MCC_CORE_ARENA_ALIGN_UP(capacity_clipped);
-
-    // allocating memory for the handle
-    arena->memory = malloc(capacity_aligned);
-    if (arena->memory == NULL) {
-        mcc_core_error_fatal("mcc_core_arena_construct: failed to allocate %zu bytes for arena instance\n", capacity_aligned);
-    }
-
-    arena->capacity = capacity_aligned;
-    arena->position = 0;
-    arena->next = NULL;
+    _mcc_arena_block* first = _mcc_core_arena_block_create(_MCC_CORE_ARENA_SIZE_DEFAULT);
+    arena->first = first;
+    arena->current = first;
 
     return arena;
 }
 
 void mcc_core_arena_destruct(mcc_core_arena* self) {
-    // base case
-    if (self == NULL) {
-        return;
-    }
+    if (self == NULL) return;
 
-    mcc_core_arena_destruct(self->next);
-    free(self->memory);
+    _mcc_arena_block* it = self->first;
+    while (it != NULL) {
+        _mcc_arena_block* next = it->next;
+        free(it);
+        it = next;
+    }
     free(self);
 }
 
-static bool _mcc_core_arena_available(mcc_core_arena* self, size_t size) {
-    if (self == NULL) {
-        mcc_core_error_fatal("_mcc_core_arena_available: NULL passed as self");
-    }
-
-    if (size == 0) {
-        mcc_core_error_fatal("_mcc_core_arena_available: allocation of zero size requested");
-    }
-
-    // align size
-    size_t size_aligned = _MCC_CORE_ARENA_ALIGN_UP(size);
-
-    size_t available = self->capacity - self->position;
-
-    return available >= size_aligned;
-}
-
 void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
-    if (self == NULL) {
-        mcc_core_error_fatal("mcc_core_arena_allocate: NULL passed as self");
-    }
+    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_allocate: self is NULL");
+    if (size == 0) return NULL;
 
-    if (size == 0) {
-        mcc_core_error_fatal("mcc_core_arena_allocate: allocation of zero size requested");
-    }
+    size_t aligned_size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
-    // align size
-    size_t size_aligned = _MCC_CORE_ARENA_ALIGN_UP(size);
+    // 1. Try to allocate from the current block
+    // The check is performed inside '_attempt_alloc'.
+    void* ptr = _mcc_core_arena_attempt_alloc(self->current, aligned_size);
 
-    // check for availability in this arena (base case)
-    if (_mcc_core_arena_available(self, size_aligned)) {
-        // we use uintptr_t for ISO C pointer arithmatic
-        uintptr_t memory = (uintptr_t)(self->memory) + self->position;
-        self->position += size_aligned;
-
-        // zero out the requested block
-        void* ptr = (void*)memory;
-        memset(ptr, 0, size_aligned);
+    // 2. Success? Return immediately.
+    if (ptr != NULL) {
         return ptr;
     }
 
-    // if sufficient memory is not available in this arena, ask for it from next
-    // if next does not exist, create it
-    // we do not fail here, only fail happens if malloc fails
-    self->next = self->next ? self->next : mcc_core_arena_construct(size_aligned);
-    return mcc_core_arena_allocate(self->next, size_aligned);
+    // 3. Failure? Grow the arena.
+    // This guarantees 'self->current' will point to a block with sufficient capacity.
+    _mcc_core_arena_grow(self, aligned_size);
+
+    // 4. Retry allocation
+    ptr = _mcc_core_arena_attempt_alloc(self->current, aligned_size);
+
+    // 5. Sanity Check
+    // If logic is correct, this is unreachable.
+    // If we crash here, '_grow' failed to provide a valid block.
+    if (ptr == NULL) {
+        mcc_core_error_fatal("Arena Logic Error: Allocation failed after growth.");
+    }
+
+    return ptr;
 }
 
 void mcc_core_arena_clear(mcc_core_arena* self) {
-    // base case
-    if (self == NULL) {
-        return;
-    }
+    if (self == NULL) return;
 
-    mcc_core_arena_clear(self->next);
-    self->position = 0;
+    self->current = self->first;
+    self->first->pos = 0;
+
+    // We do not need to clear the whole chain
+    // We only clear a block when we are gonna use it
 }
