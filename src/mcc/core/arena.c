@@ -36,6 +36,8 @@ struct mcc_core_arena {
  * @brief Allocates a raw new block from the OS.
  */
 static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
+    if (capacity == 0) mcc_core_error_fatal("_mcc_core_arena_block_create: block of zero capacity requested");
+
     size_t total_size = sizeof(_mcc_arena_block) + capacity;
     _mcc_arena_block* block = (_mcc_arena_block*)malloc(total_size);
 
@@ -54,6 +56,9 @@ static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
  * * @return Pointer to memory if successful, NULL if the block is full.
  */
 static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size) {
+    if (block == NULL) mcc_core_error_fatal("_mcc_core_arena_attempt_alloc: block is NULL");
+    if (size == 0) mcc_core_error_fatal("_mcc_core_arena_attempt_alloc: memory of size == 0 requested");
+
     // Explicit Bound Check: The check happens right here, before we touch memory.
     if (block->pos + size > block->capacity) {
         return NULL;
@@ -72,6 +77,9 @@ static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size)
  * 2. Allocates a new block and inserts it into the chain.
  */
 static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
+    if (self == NULL) mcc_core_error_fatal("_mcc_core_arena_grow: self is NULL");
+    if (needed_size == 0) mcc_core_error_fatal("_mcc_core_arena_grow: grow called when needed_size == 0");
+
     _mcc_arena_block* cur = self->current;
 
     // Strategy 1: Check if we have a 'next' block from a previous reuse
@@ -120,7 +128,7 @@ mcc_core_arena* mcc_core_arena_construct() {
 }
 
 void mcc_core_arena_destruct(mcc_core_arena* self) {
-    if (self == NULL) return;
+    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_destruct: self is NULL");
 
     _mcc_arena_block* it = self->first;
     while (it != NULL) {
@@ -133,7 +141,7 @@ void mcc_core_arena_destruct(mcc_core_arena* self) {
 
 void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
     if (self == NULL) mcc_core_error_fatal("mcc_core_arena_allocate: self is NULL");
-    if (size == 0) return NULL;
+    if (size == 0) mcc_core_error_fatal("mcc_core_arena_allocate: memory of size == 0 requested");
 
     size_t aligned_size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
@@ -164,7 +172,7 @@ void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
 }
 
 void mcc_core_arena_clear(mcc_core_arena* self) {
-    if (self == NULL) return;
+    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_clear: self is NULL");
 
     self->current = self->first;
     self->first->pos = 0;
