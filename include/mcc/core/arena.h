@@ -28,7 +28,7 @@ typedef struct mcc_core_arena mcc_core_arena;
  * @return A valid pointer to the new arena.
  * @post The program terminates if allocation fails.
  */
-mcc_core_arena *mcc_core_arena_construct(size_t capacity);
+mcc_core_arena *mcc_core_arena_construct();
 
 /**
  * @brief Destroys the arena and frees ALL memory associated with it.
