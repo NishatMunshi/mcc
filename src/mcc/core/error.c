@@ -5,7 +5,10 @@
 #include <stdlib.h>
 
 void mcc_core_error_fatal(char *format, ...) {
-    MCC_CORE_ERROR_CHECK_NULL(format);
+    if(format == NULL) {
+        fprintf(stderr, "%s: format is NULL", __func__);
+        exit(1);
+    }
     
     va_list args;
     va_start(args, format);
