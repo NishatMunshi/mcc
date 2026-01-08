@@ -27,8 +27,8 @@ static void _mcc_driver_args_print_usage(int exit_code) {
 }
 
 mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char **argv) {
-    if (arena == NULL) mcc_core_error_fatal("mcc_driver_args_construct: arena is NULL");
-    if (argv == NULL) mcc_core_error_fatal("mcc_driver_args_construct: argv is NULL");
+    MCC_CORE_ERROR_CHECK_NULL(arena);
+    MCC_CORE_ERROR_CHECK_NULL(argv);
     if (argc < 1) mcc_core_error_fatal("mcc_driver_args_construct: argc < 1");
 
     mcc_driver_args *self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_driver_args, 1);
@@ -93,7 +93,7 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
 
 // getters
 mcc_core_string *mcc_driver_args_get_input_file_name(mcc_driver_args *self) {
-    if (self == NULL) mcc_core_error_fatal("mcc_driver_args_get_input_file_name: self is NULL");
+    MCC_CORE_ERROR_CHECK_NULL(self);
 
     return self->input_file_name;
 }

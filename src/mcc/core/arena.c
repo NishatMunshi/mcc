@@ -36,13 +36,11 @@ struct mcc_core_arena {
  * @brief Allocates a raw new block from the OS.
  */
 static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
-    if (capacity == 0) mcc_core_error_fatal("_mcc_core_arena_block_create: block of zero capacity requested");
-
     size_t total_size = sizeof(_mcc_arena_block) + capacity;
     _mcc_arena_block* block = (_mcc_arena_block*)malloc(total_size);
 
     if (block == NULL) {
-        mcc_core_error_fatal("Arena OOM: Failed to allocate block of size %zu", total_size);
+        mcc_core_error_fatal("%s: Failed to allocate block of size %zu", __func__, total_size);
     }
 
     block->next = NULL;
@@ -56,8 +54,7 @@ static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
  * * @return Pointer to memory if successful, NULL if the block is full.
  */
 static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size) {
-    if (block == NULL) mcc_core_error_fatal("_mcc_core_arena_attempt_alloc: block is NULL");
-    if (size == 0) mcc_core_error_fatal("_mcc_core_arena_attempt_alloc: memory of size == 0 requested");
+    MCC_CORE_ERROR_CHECK_NULL(block);
 
     // Explicit Bound Check: The check happens right here, before we touch memory.
     if (block->pos + size > block->capacity) {
@@ -77,8 +74,7 @@ static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size)
  * 2. Allocates a new block and inserts it into the chain.
  */
 static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
-    if (self == NULL) mcc_core_error_fatal("_mcc_core_arena_grow: self is NULL");
-    if (needed_size == 0) mcc_core_error_fatal("_mcc_core_arena_grow: grow called when needed_size == 0");
+    MCC_CORE_ERROR_CHECK_NULL(self);
 
     _mcc_arena_block* cur = self->current;
 
@@ -117,7 +113,7 @@ static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
 mcc_core_arena* mcc_core_arena_construct() {
     mcc_core_arena* self = (mcc_core_arena*)malloc(sizeof(mcc_core_arena));
     if (self == NULL) {
-        mcc_core_error_fatal("mcc_core_arena_construct: failed to allocate arena handle");
+        mcc_core_error_fatal("%s: failed to allocate arena handle", __func__);
     }
 
     _mcc_arena_block* first = _mcc_core_arena_block_create(_MCC_CORE_ARENA_SIZE_DEFAULT);
@@ -128,7 +124,7 @@ mcc_core_arena* mcc_core_arena_construct() {
 }
 
 void mcc_core_arena_destruct(mcc_core_arena* self) {
-    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_destruct: self is NULL");
+    MCC_CORE_ERROR_CHECK_NULL(self);
 
     _mcc_arena_block* it = self->first;
     while (it != NULL) {
@@ -140,9 +136,7 @@ void mcc_core_arena_destruct(mcc_core_arena* self) {
 }
 
 void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
-    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_allocate: self is NULL");
-    if (size == 0) mcc_core_error_fatal("mcc_core_arena_allocate: memory of size == 0 requested");
-
+    MCC_CORE_ERROR_CHECK_NULL(self);
     size_t aligned_size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
     // 1. Try to allocate from the current block
@@ -165,14 +159,14 @@ void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
     // If logic is correct, this is unreachable.
     // If we crash here, '_grow' failed to provide a valid block.
     if (ptr == NULL) {
-        mcc_core_error_fatal("mcc_core_arena_allocate: allocation failed after growth.");
+        mcc_core_error_fatal("%s: allocation failed after growth", __func__);
     }
 
     return ptr;
 }
 
 void mcc_core_arena_clear(mcc_core_arena* self) {
-    if (self == NULL) mcc_core_error_fatal("mcc_core_arena_clear: self is NULL");
+    MCC_CORE_ERROR_CHECK_NULL(self);
 
     self->current = self->first;
     self->first->pos = 0;
