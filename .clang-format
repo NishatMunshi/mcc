@@ -4,3 +4,5 @@ IndentWidth: 4
 TabWidth: 4
 AccessModifierOffset: -4
 ColumnLimit: 0
+DerivePointerAlignment: false
+PointerAlignment: Left

@@ -28,7 +28,7 @@ typedef struct mcc_core_arena mcc_core_arena;
  * @return A valid pointer to the new arena.
  * @post The program terminates if allocation fails.
  */
-mcc_core_arena *mcc_core_arena_construct();
+mcc_core_arena* mcc_core_arena_construct();
 
 /**
  * @brief Destroys the arena and frees ALL memory associated with it.
@@ -37,7 +37,7 @@ mcc_core_arena *mcc_core_arena_construct();
  *
  * @param self A pointer to the arena to destroy. If NULL, this function does nothing.
  */
-void mcc_core_arena_destruct(mcc_core_arena *self);
+void mcc_core_arena_destruct(mcc_core_arena* self);
 
 /* --- Allocators --- */
 
@@ -52,7 +52,7 @@ void mcc_core_arena_destruct(mcc_core_arena *self);
  * @return A pointer to the allocated memory block, all cleared to 0
  * @warning Never returns NULL. If the allocation fails, the program terminates.
  */
-void *mcc_core_arena_allocate(mcc_core_arena *self, size_t size);
+void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size);
 
 /**
  * @brief Helper macro for type-safe array allocation.
@@ -63,7 +63,7 @@ void *mcc_core_arena_allocate(mcc_core_arena *self, size_t size);
  * @return A casted pointer to the allocated array (Never NULL).
  */
 #define MCC_CORE_ARENA_ALLOCATE(arena, type, count) \
-    ((type *)mcc_core_arena_allocate((arena), (count * sizeof(type))))
+    ((type*)mcc_core_arena_allocate((arena), (count * sizeof(type))))
 
 /* --- Modifiers --- */
 
@@ -74,6 +74,6 @@ void *mcc_core_arena_allocate(mcc_core_arena *self, size_t size);
  *
  * @param self The arena instance to clear. If NULL, this function does nothing
  */
-void mcc_core_arena_clear(mcc_core_arena *self);
+void mcc_core_arena_clear(mcc_core_arena* self);
 
 #endif  // MCC_CORE_ARENA_H

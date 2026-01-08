@@ -22,11 +22,11 @@
  * @param file_name  The path to the file to read.
  * * @return A string containing the file data.
  * * @note This function is **Fatal**. If the file cannot be opened, read,
- * or if size determination fails, the program will print an error 
+ * or if size determination fails, the program will print an error
  * to stderr and exit(1). It never returns NULL.
  * * @warning The returned string data is guaranteed to be null-terminated,
  * making it safe to use with C-style APIs if needed.
  */
 mcc_core_string* mcc_core_file_read(mcc_core_arena* arena, mcc_core_string* file_name);
 
-#endif // MCC_CORE_FILE_H
+#endif  // MCC_CORE_FILE_H

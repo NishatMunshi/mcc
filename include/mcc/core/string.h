@@ -14,6 +14,7 @@
  * This structure represents a managed string of characters.
  * It is designed to be allocated within an `mcc_core_arena`.
  * len is the number of characters excluding any null at the end
+ * len == 0 is allowed
  *
  * Unlike standard C strings, these strings:
  * 1. Store their len explicitly, allowing for O(1) len checks.
@@ -56,7 +57,7 @@ mcc_core_string* mcc_core_string_construct_copy_from_cstr(mcc_core_arena* arena,
 /**
  * @brief Creates a string object taking ownership of an existing buffer.
  *
- * Allocates the string metadata struct in the arena, but points directly 
+ * Allocates the string metadata struct in the arena, but points directly
  * to the provided `cstr` buffer without copying.
  *
  * @param arena The arena to allocate the string struct into.
@@ -128,7 +129,7 @@ uint64_t mcc_core_string_hash(mcc_core_string* self);
  * @param arena The arena to allocate the new substring into.
  * @param self The source string.
  * @param begin The zero-based start index (inclusive).
- * @param end The len of the required substring.
+ * @param len The len of the required substring.
  * @return A new string containing `len` characters starting from `begin` (Never NULL).
  */
 mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_string* self, size_t begin, size_t len);
@@ -170,5 +171,9 @@ void mcc_core_string_println(mcc_core_string* self, FILE* stream);
  * @return the character pointer to the start of the string
  */
 char* mcc_core_string_get_cstr(mcc_core_string* self);
+
+size_t mcc_core_string_get_len(mcc_core_string* self);
+
+char mcc_core_string_at(mcc_core_string* self, size_t idx);
 
 #endif  // MCC_CORE_STRING_H

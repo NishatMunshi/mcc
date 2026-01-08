@@ -37,7 +37,7 @@ typedef struct mcc_driver_args mcc_driver_args;
  * unknown flag), it will print an error message to stderr and exit the program.
  * It never returns NULL.
  */
-mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char **argv);
+mcc_driver_args* mcc_driver_args_construct(mcc_core_arena* arena, int argc, char** argv);
 
 // ----------------------------------------------------------------------------
 // Accessors
@@ -50,6 +50,6 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
  * * @return A pointer to the string view representing the filename (e.g., "test.c").
  * The data is owned by the Arena; do not free it.
  */
-mcc_core_string *mcc_driver_args_get_input_file_name(mcc_driver_args *self);
+mcc_core_string* mcc_driver_args_get_input_file_name(mcc_driver_args* self);
 
 #endif  //  MCC_DRIVER_ARGS_H

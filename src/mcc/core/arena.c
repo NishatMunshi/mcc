@@ -36,6 +36,8 @@ struct mcc_core_arena {
  * @brief Allocates a raw new block from the OS.
  */
 static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
+    MCC_CORE_ERROR_FATAL_CHECK_ZERO(capacity);
+
     size_t total_size = sizeof(_mcc_arena_block) + capacity;
     _mcc_arena_block* block = (_mcc_arena_block*)malloc(total_size);
 
@@ -54,7 +56,8 @@ static _mcc_arena_block* _mcc_core_arena_block_create(size_t capacity) {
  * * @return Pointer to memory if successful, NULL if the block is full.
  */
 static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size) {
-    MCC_CORE_ERROR_CHECK_NULL(block);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(block);
+    MCC_CORE_ERROR_FATAL_CHECK_ZERO(size);
 
     // Explicit Bound Check: The check happens right here, before we touch memory.
     if (block->pos + size > block->capacity) {
@@ -74,7 +77,8 @@ static void* _mcc_core_arena_attempt_alloc(_mcc_arena_block* block, size_t size)
  * 2. Allocates a new block and inserts it into the chain.
  */
 static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_ZERO(needed_size);
 
     _mcc_arena_block* cur = self->current;
 
@@ -124,7 +128,7 @@ mcc_core_arena* mcc_core_arena_construct() {
 }
 
 void mcc_core_arena_destruct(mcc_core_arena* self) {
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
 
     _mcc_arena_block* it = self->first;
     while (it != NULL) {
@@ -136,7 +140,9 @@ void mcc_core_arena_destruct(mcc_core_arena* self) {
 }
 
 void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_ZERO(size);
+
     size_t aligned_size = _MCC_CORE_ARENA_ALIGN_UP(size);
 
     // 1. Try to allocate from the current block
@@ -166,7 +172,7 @@ void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
 }
 
 void mcc_core_arena_clear(mcc_core_arena* self) {
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
 
     self->current = self->first;
     self->first->pos = 0;

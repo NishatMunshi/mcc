@@ -13,9 +13,9 @@ struct mcc_core_string {
 
 mcc_core_string* mcc_core_string_construct_copy(mcc_core_arena* arena, char* start, size_t len) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(arena);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(arena);
     // Only crash if user asks to copy data from NULL
-    if(len > 0) MCC_CORE_ERROR_CHECK_NULL(start);
+    if (len > 0) MCC_CORE_ERROR_FATAL_CHECK_NULL(start);
 
     mcc_core_string* self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
     self->data = MCC_CORE_ARENA_ALLOCATE(arena, char, len + 1);
@@ -31,16 +31,16 @@ mcc_core_string* mcc_core_string_construct_copy(mcc_core_arena* arena, char* sta
 
 mcc_core_string* mcc_core_string_construct_copy_from_cstr(mcc_core_arena* arena, char* cstr) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(arena);
-    MCC_CORE_ERROR_CHECK_NULL(cstr);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(arena);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(cstr);
 
     return mcc_core_string_construct_copy(arena, cstr, strlen(cstr));
 }
 
 mcc_core_string* mcc_core_string_construct_move_from_cstr(mcc_core_arena* arena, char* cstr, size_t len) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(arena);
-    if (len > 0) MCC_CORE_ERROR_CHECK_NULL(cstr);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(arena);
+    if (len > 0) MCC_CORE_ERROR_FATAL_CHECK_NULL(cstr);
 
     mcc_core_string* self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
 
@@ -56,8 +56,8 @@ mcc_core_string* mcc_core_string_construct_move_from_cstr(mcc_core_arena* arena,
 // comparators
 bool mcc_core_string_equals(mcc_core_string* self, mcc_core_string* other) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(other);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(other);
 
     if (self->len != other->len) {
         return false;
@@ -72,8 +72,8 @@ bool mcc_core_string_equals(mcc_core_string* self, mcc_core_string* other) {
 
 bool mcc_core_string_equals_cstr(mcc_core_string* self, char* cstr) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(cstr);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(cstr);
 
     mcc_core_string mcc_cstr = {.data = cstr, .len = strlen(cstr)};
 
@@ -82,8 +82,8 @@ bool mcc_core_string_equals_cstr(mcc_core_string* self, char* cstr) {
 
 bool mcc_core_string_starts_with(mcc_core_string* self, mcc_core_string* prefix) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(prefix);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(prefix);
 
     if (self->len < prefix->len) {
         return false;
@@ -94,8 +94,8 @@ bool mcc_core_string_starts_with(mcc_core_string* self, mcc_core_string* prefix)
 
 bool mcc_core_string_starts_with_cstr(mcc_core_string* self, char* prefix) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(prefix);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(prefix);
 
     mcc_core_string mcc_prefix = {.data = prefix, .len = strlen(prefix)};
 
@@ -105,7 +105,7 @@ bool mcc_core_string_starts_with_cstr(mcc_core_string* self, char* prefix) {
 // hashing - FNV-1a
 uint64_t mcc_core_string_hash(mcc_core_string* self) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
 
     uint64_t hash = 0xcbf29ce484222325;
 
@@ -120,8 +120,8 @@ uint64_t mcc_core_string_hash(mcc_core_string* self) {
 // utilities
 mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_string* self, size_t begin, size_t len) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(arena);
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(arena);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
     // begin == 0 is perfectly valid
     // len == 0 is perfectly valid (empty string is a substring of all valid strings)
 
@@ -143,8 +143,8 @@ mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_strin
 
 mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core_string* self) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(arena);
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(arena);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
 
     // We don't need to check for empty explicitly.
     // If self is empty, len starts at 0, loops skip, and we make a new empty string.
@@ -169,23 +169,39 @@ mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core
 
 void mcc_core_string_print(mcc_core_string* self, FILE* stream) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(stream);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(stream);
 
     fwrite(self->data, 1, self->len, stream);
 }
 
 void mcc_core_string_println(mcc_core_string* self, FILE* stream) {
     // debug safety
-    MCC_CORE_ERROR_CHECK_NULL(self);
-    MCC_CORE_ERROR_CHECK_NULL(stream);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(stream);
 
     fwrite(self->data, 1, self->len, stream);
     fputc('\n', stream);
 }
 
 char* mcc_core_string_get_cstr(mcc_core_string* self) {
-    MCC_CORE_ERROR_CHECK_NULL(self);
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
 
     return self->data;
+}
+
+size_t mcc_core_string_get_len(mcc_core_string* self) {
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+
+    return self->len;
+}
+
+char mcc_core_string_at(mcc_core_string* self, size_t idx) {
+    MCC_CORE_ERROR_FATAL_CHECK_NULL(self);
+
+    if (idx >= self->len) {
+        mcc_core_error_fatal("%s: string index %zu out of bound", __func__, idx);
+    }
+
+    return self->data[idx];
 }
