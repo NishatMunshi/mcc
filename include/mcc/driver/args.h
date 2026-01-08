@@ -16,7 +16,7 @@
  * The internal layout is hidden to ensure encapsulation.
  * Instances must be allocated via the constructor.
  */
-typedef struct mcc_driver_args mcc_driver_args; 
+typedef struct mcc_driver_args mcc_driver_args;
 
 // ----------------------------------------------------------------------------
 // Constructors
@@ -37,7 +37,7 @@ typedef struct mcc_driver_args mcc_driver_args;
  * unknown flag), it will print an error message to stderr and exit the program.
  * It never returns NULL.
  */
-mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char **argv);  
+mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char **argv);
 
 // ----------------------------------------------------------------------------
 // Accessors
@@ -52,4 +52,4 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
  */
 mcc_core_string *mcc_driver_args_get_input_file_name(mcc_driver_args *self);
 
-#endif //  MCC_DRIVER_ARGS_H
+#endif  //  MCC_DRIVER_ARGS_H

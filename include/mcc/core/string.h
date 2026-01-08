@@ -40,7 +40,7 @@ typedef struct mcc_core_string mcc_core_string;
  * @param len The number of bytes to copy.
  * @return A new string instance containing a copy of the range (Never NULL).
  */
-mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, size_t len);
+mcc_core_string* mcc_core_string_construct_copy(mcc_core_arena* arena, char* start, size_t len);
 
 /**
  * @brief Creates a new string by copying a standard null-terminated C string.
@@ -51,7 +51,21 @@ mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, s
  * @param cstr A null-terminated C string. Must not be NULL.
  * @return A new string instance containing a copy of the data (Never NULL).
  */
-mcc_core_string* mcc_core_string_construct_from_cstr(mcc_core_arena* arena, char* cstr);
+mcc_core_string* mcc_core_string_construct_copy_from_cstr(mcc_core_arena* arena, char* cstr);
+
+/**
+ * @brief Creates a string object taking ownership of an existing buffer.
+ *
+ * Allocates the string metadata struct in the arena, but points directly 
+ * to the provided `cstr` buffer without copying.
+ *
+ * @param arena The arena to allocate the string struct into.
+ * @param cstr  The existing buffer to use. Must be a valid pointer.
+ * This function assumes it can modify `cstr[len]` for termination.
+ * @param len   The length of the string (excluding null terminator).
+ * @return A new string instance wrapping the provided buffer.
+ */
+mcc_core_string* mcc_core_string_construct_move_from_cstr(mcc_core_arena* arena, char* cstr, size_t len);
 
 /* --- Comparators --- */
 
@@ -146,5 +160,15 @@ void mcc_core_string_print(mcc_core_string* self, FILE* stream);
  * @param stream The file stream (e.g., stdout, stderr).
  */
 void mcc_core_string_println(mcc_core_string* self, FILE* stream);
+
+/**
+ * @brief gets the character pointer to the start of the string
+ *
+ * Null terminates the string properly before return
+ *
+ * @param self pointer to the string object
+ * @return the character pointer to the start of the string
+ */
+char* mcc_core_string_get_cstr(mcc_core_string* self);
 
 #endif  // MCC_CORE_STRING_H

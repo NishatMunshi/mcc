@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void mcc_core_error_fatal(const char *format, ...) {
+void mcc_core_error_fatal( char *format, ...) {
     va_list args;
     va_start(args, format);
 

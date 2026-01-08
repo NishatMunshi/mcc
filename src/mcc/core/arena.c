@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>  // for memset
 
 #include "mcc/core/error.h"
 
@@ -117,7 +117,7 @@ static void _mcc_core_arena_grow(mcc_core_arena* self, size_t needed_size) {
 mcc_core_arena* mcc_core_arena_construct() {
     mcc_core_arena* self = (mcc_core_arena*)malloc(sizeof(mcc_core_arena));
     if (self == NULL) {
-        mcc_core_error_fatal("Arena OOM: Failed to allocate arena handle");
+        mcc_core_error_fatal("mcc_core_arena_construct: failed to allocate arena handle");
     }
 
     _mcc_arena_block* first = _mcc_core_arena_block_create(_MCC_CORE_ARENA_SIZE_DEFAULT);
@@ -165,7 +165,7 @@ void* mcc_core_arena_allocate(mcc_core_arena* self, size_t size) {
     // If logic is correct, this is unreachable.
     // If we crash here, '_grow' failed to provide a valid block.
     if (ptr == NULL) {
-        mcc_core_error_fatal("Arena Logic Error: Allocation failed after growth.");
+        mcc_core_error_fatal("mcc_core_arena_allocate: allocation failed after growth.");
     }
 
     return ptr;

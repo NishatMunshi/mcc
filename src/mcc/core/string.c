@@ -11,11 +11,11 @@ struct mcc_core_string {
     char* data;
 };
 
-mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, size_t len) {
+mcc_core_string* mcc_core_string_construct_copy(mcc_core_arena* arena, char* start, size_t len) {
     // debug safety
-    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_range: arena is NULL");
+    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_copy: arena is NULL");
     // Only crash if user asks to copy data from NULL
-    if (len > 0 && start == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_range: start is NULL with non-zero len");
+    if (len > 0 && start == NULL) mcc_core_error_fatal("mcc_core_string_construct_copy: start is NULL with non-zero len");
 
     mcc_core_string* self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
     self->data = MCC_CORE_ARENA_ALLOCATE(arena, char, len + 1);
@@ -29,12 +29,28 @@ mcc_core_string* mcc_core_string_construct(mcc_core_arena* arena, char* start, s
     return self;
 }
 
-mcc_core_string* mcc_core_string_construct_from_cstr(mcc_core_arena* arena, char* cstr) {
+mcc_core_string* mcc_core_string_construct_copy_from_cstr(mcc_core_arena* arena, char* cstr) {
     // debug safety
-    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_cstr: arena is NULL");
-    if (cstr == NULL) mcc_core_error_fatal("mcc_core_string_construct_from_cstr: cstr is NULL");
+    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_copy_from_cstr: arena is NULL");
+    if (cstr == NULL) mcc_core_error_fatal("mcc_core_string_construct_copy_from_cstr: cstr is NULL");
 
-    return mcc_core_string_construct(arena, cstr, strlen(cstr));
+    return mcc_core_string_construct_copy(arena, cstr, strlen(cstr));
+}
+
+mcc_core_string* mcc_core_string_construct_move_from_cstr(mcc_core_arena* arena, char* cstr, size_t len) {
+    // debug safety
+    if (arena == NULL) mcc_core_error_fatal("mcc_core_string_construct_move_from_cstr: arena is NULL");
+    if (len > 0 && cstr == NULL) mcc_core_error_fatal("mcc_core_string_construct_move_from_cstr: cstr is NULL with non-zero len");
+
+    mcc_core_string* self = MCC_CORE_ARENA_ALLOCATE(arena, mcc_core_string, 1);
+
+    // just take ownership, forget about the buffer
+    self->data = cstr;
+    self->len = len;
+
+    // null terminate for consistensy with the other constructors
+    self->data[len] = '\0';
+    return self;
 }
 
 // comparators
@@ -122,7 +138,7 @@ mcc_core_string* mcc_core_string_substring(mcc_core_arena* arena, mcc_core_strin
     // 3. Delegate to the range constructor (This correctly copies/Owns the memory)
     // len == 0 is handled inside the constructor safely
     char* start = self->data + begin;
-    return mcc_core_string_construct(arena, start, len);
+    return mcc_core_string_construct_copy(arena, start, len);
 }
 
 mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core_string* self) {
@@ -148,7 +164,7 @@ mcc_core_string* mcc_core_string_trim_whitespace(mcc_core_arena* arena, mcc_core
     }
 
     // Always returns a new string on the provided 'arena'
-    return mcc_core_string_construct(arena, self->data + begin, len);
+    return mcc_core_string_construct_copy(arena, self->data + begin, len);
 }
 
 void mcc_core_string_print(mcc_core_string* self, FILE* stream) {
@@ -166,4 +182,10 @@ void mcc_core_string_println(mcc_core_string* self, FILE* stream) {
 
     fwrite(self->data, 1, self->len, stream);
     fputc('\n', stream);
+}
+
+char* mcc_core_string_get_cstr(mcc_core_string* self) {
+    if (self == NULL) mcc_core_error_fatal("mcc_core_string_get_cstr: self is NULL");
+
+    return self->data;
 }

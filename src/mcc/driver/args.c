@@ -14,7 +14,7 @@ struct mcc_driver_args {
 };
 
 static void _mcc_driver_args_print_usage(int exit_code) {
-    const char *usage_cstr =
+     char *usage_cstr =
         "Usage: mcc [options] file...\n"
         "Options:\n"
         "  --help             Display this information.\n"
@@ -35,7 +35,7 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
 
     bool parsing_options = true;
     for (int i = 1; i < argc; ++i) {
-        mcc_core_string *arg = mcc_core_string_construct_from_cstr(arena, argv[i]);
+        mcc_core_string *arg = mcc_core_string_construct_copy_from_cstr(arena, argv[i]);
 
         // --- Option Parsing ---
         if (parsing_options && mcc_core_string_starts_with_cstr(arg, "-")) {
@@ -62,7 +62,7 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
 
                 // Consume the next argument immediately
                 i++;
-                self->output_file_name = mcc_core_string_construct_from_cstr(arena, argv[i]);
+                self->output_file_name = mcc_core_string_construct_copy_from_cstr(arena, argv[i]);
             }
 
             else {
@@ -85,7 +85,7 @@ mcc_driver_args *mcc_driver_args_construct(mcc_core_arena *arena, int argc, char
     }
 
     if (self->output_file_name == NULL) {
-        self->output_file_name = mcc_core_string_construct_from_cstr(arena, "a.s");
+        self->output_file_name = mcc_core_string_construct_copy_from_cstr(arena, "a.s");
     }
 
     return self;
