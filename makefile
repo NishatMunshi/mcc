@@ -50,7 +50,7 @@ format:
 # Testing (Updated to pass the target binary itself if needed)
 test:
 	@find . -name "*.[ch]" -not -name "test.c" -exec awk 'FNR==1{print ""}1' {} + > test.c
-	@./$(TARGET) ./test.c ./test.s
+	@./$(TARGET) ./src/main.c ./test.s
 
 # Clean
 clean:

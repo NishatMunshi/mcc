@@ -12,6 +12,13 @@
 
 #define LINUX_BRK_CURRENT ((u8*)0)
 
+#define LINUX_FILE_MODE_READONLY  0
+#define LINUX_FILE_MODE_WRITEONLY 1
+#define LINUX_FILE_MODE_READWRITE 2
+#define LINUX_FILE_MODE_CREAT     64
+
+#define LINUX_FILE_PERM_USER_RW   438
+
 noreturn void linux_exit(u8 code);
 s64 linux_write(s32 fd, char* buf, size_t len);
 // guaraantees zeroed out pages on first request
@@ -39,7 +46,7 @@ typedef struct {
     s64 __unused[3];
 } linux_stat_t;
 
-s64 linux_open(char* filename);
+s32 linux_open(char* filename, s32 flags, s32 mode);
 s64 linux_close(s32 fd);
 s64 linux_read(s32 fd, char* buf, size_t len);
 s64 linux_fstat(s32 fd, linux_stat_t* stat);

@@ -2,6 +2,7 @@
 
 #include "linux.h"
 #include "error.h"
+#include "file.h"
 #include "string.h"
 #include "arena.h"
 
@@ -10,12 +11,12 @@ s32 main(s32 argc, char** argv) {
         error_fatal("no input file");
     }
 
-    // first thing we do is to init the arena
     arena_init();
 
-    size_t filename_len = str_len(argv[1]);
-    linux_write(LINUX_FD_STDOUT, argv[1], filename_len);
-    linux_write(LINUX_FD_STDOUT, "\n", 1);
+    char* source = file_read(argv[1]);
+
+    size_t source_len = str_len(source);
+    linux_write(LINUX_FD_STDOUT, source, source_len);
 
     return LINUX_EXIT_SUCCESS;
 }

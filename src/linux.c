@@ -9,10 +9,6 @@
 #define LINUX_SYSCALL_CLOSE 3
 #define LINUX_SYSCALL_FSTAT 5
 
-#define LINUX_FILE_MODE_READONLY 0
-#define LINUX_FILE_MODE_WRITEONLY 1
-#define LINUX_FILE_MODE_READWRITE 2
-
 extern s64 _linux_syscall(
     s64 rdi,  // C puts it in: rdi
     s64 rsi,  // C puts it in: rsi
@@ -36,12 +32,15 @@ u8* linux_brk(u8* ptr) {
     return (u8*)_linux_syscall((s64)ptr, 0, 0, 0, 0, 0, LINUX_SYSCALL_BRK);
 }
 
-s64 linux_open(char* filename) {
-    // RDI: filename, RSI: flags, RDX: mode (ignored for read)
-    return _linux_syscall(
+s32 linux_open(char* filename, s32 flags, s32 mode) {
+    // RDI: filename
+    // RSI: flags
+    // RDX: mode (Permissions, e.g. 0644. Only used if creating a file)
+    return (s32)_linux_syscall(
         (s64)filename,
-        LINUX_FILE_MODE_READONLY,
-        0, 0, 0, 0,
+        (s64)flags,
+        (s64)mode,
+        0, 0, 0,
         LINUX_SYSCALL_OPEN
     );
 }
