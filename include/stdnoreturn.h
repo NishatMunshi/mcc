@@ -5,4 +5,4 @@
 
 #define __noreturn_is_defined 1
 
-#endif // _STDNORETURN_H
+#endif  // _STDNORETURN_H

@@ -5,4 +5,4 @@
 
 noreturn void error_fatal(char* message);
 
-#endif // ERROR_H
+#endif  // ERROR_H

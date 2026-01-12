@@ -31,7 +31,7 @@ static u8* arena_ask_os_for_mem(size_t request) {
     u8* next_brk = linux_brk(next_brk_req);
 
     // handle OS refusal
-    if(next_brk != next_brk_req) {
+    if (next_brk != next_brk_req) {
         error_fatal("out of memory");
     }
 

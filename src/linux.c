@@ -21,7 +21,7 @@ extern s64 _linux_syscall(
 
 noreturn void linux_exit(u8 code) {
     _linux_syscall((s64)code, 0, 0, 0, 0, 0, LINUX_SYSCALL_EXIT);
-    while(true);
+    while (true);
 }
 
 s64 linux_write(s32 fd, char* buf, size_t len) {
@@ -49,7 +49,7 @@ s64 linux_close(s32 fd) {
     return _linux_syscall((s64)fd, 0, 0, 0, 0, 0, LINUX_SYSCALL_CLOSE);
 }
 
-s64 linux_read(s32 fd, char* buf, size_t len) {
+s64 linux_read(s32 fd, u8* buf, size_t len) {
     // Note: Syscall expects FD in RDI, Buf in RSI.
     return _linux_syscall(
         (s64)fd,

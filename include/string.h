@@ -5,4 +5,4 @@
 
 size_t str_len(char* cstr);
 
-#endif // STRING_H
+#endif  // STRING_H

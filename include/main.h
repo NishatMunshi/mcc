@@ -5,4 +5,4 @@
 
 s32 main(s32 argc, char** argv);
 
-#endif // MAIN_H
+#endif  // MAIN_H
