@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Make (CodeLLDB)",
+            "type": "lldb",       // CHANGED: "cppdbg" -> "lldb"
+            "request": "launch",
+            "program": "${workspaceFolder}/mcc",
+            "args": ["./test.txt", "./test.s"],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Make Build"
+        }
+    ]
+}

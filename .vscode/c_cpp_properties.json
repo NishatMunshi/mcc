@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "mcc",
+            "includePath": [
+                "${workspaceFolder}/include"
+            ],
+            "defines": [
+                "__STDC_HOSTED__=0"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "intelliSenseMode": "linux-clang-x64",
+            "compilerArgs": [
+                "-nostdinc",
+                "-ffreestanding",
+                "-fno-builtin"
+            ]
+        }
+    ],
+    "version": 4
+}
