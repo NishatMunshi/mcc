@@ -11,9 +11,13 @@ typedef struct File {
     // this is my name
     char* name;
 
-    // and this is the data I contain
-    u8* data;  // raw bytes
-    size_t size;
+    // and this is my original data
+    u8* og_data;  // raw bytes
+    size_t og_size;
+
+    // This is currently my data
+    // as i evolve
+    char* curr_data;
 } File;
 
 File* file_read(char* filename, Token* org_tok);

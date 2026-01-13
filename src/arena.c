@@ -5,6 +5,7 @@
 #include "stdalign.h"
 #include "utils.h"
 
+#define ARENA_KiB(x) ((x) << 10)
 #define ARENA_MiB(x) ((x) << 20)
 #define ARENA_SIZE_DEFAULT (ARENA_MiB(1))
 #define ARENA_ALIGNMENT_BYTES (alignof(max_align_t))
@@ -63,4 +64,8 @@ void* arena_alloc(size_t size) {
     arena.pos += aligned_size;
 
     return (void*)ptr;
+}
+
+size_t arena_usage_KiB(void) {
+    return arena.pos / ARENA_KiB(1);
 }

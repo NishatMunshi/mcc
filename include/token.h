@@ -130,7 +130,6 @@ typedef struct {
     // inside line
     size_t line;
     char* line_start;
-    size_t line_len;
 
     // at
     size_t col;

@@ -46,10 +46,15 @@ File* file_read(char* filename, Token* org_tok) {
     buffer[size] = '\0';
 
     File* file = ARENA_ALLOC(File, 1);
+
     file->org_tok = org_tok;
     file->name = filename;
-    file->data = buffer;
-    file->size = size;
+    file->og_data = buffer;
+    file->og_size = size;
+
+    // assume we have valid data
+    // phase1 will make sure
+    file->curr_data = (char*)buffer;
 
     return file;
 }
