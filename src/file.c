@@ -52,9 +52,5 @@ File* file_read(char* filename, Token* org_tok) {
     file->og_data = buffer;
     file->og_size = size;
 
-    // assume we have valid data
-    // phase1 will make sure
-    file->curr_data = (char*)buffer;
-
     return file;
 }

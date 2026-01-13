@@ -18,59 +18,62 @@ char trigraph_replace(char c) {
     }
 }
 
-char* normalize(File* file) {
-    char* buff = ARENA_ALLOC(char, file->og_size + 1);
+void normalize(File* file) {
+    u8* in = file->og_data;
+    size_t og_size = file->og_size;
+    char* out = ARENA_ALLOC(char, og_size + 1);
 
     size_t line = 1;
     size_t col = 1;
-    char* line_start = (char*)file->og_data;
+    char* line_start = (char*)in;
 
     size_t r_idx = 0;
     size_t w_idx = 0;
 
-    while (r_idx < file->og_size) {
+    while (r_idx < og_size) {
         // NUL detection
-        if (file->og_data[r_idx] == '\0') {
+        if (in[r_idx] == '\0') {
             diag_error(&(Token){
                            .col = col,
                            .file = file,
                            .line = line,
                            .line_start = line_start,
                            .text_len = 1,
-                           .text_start = (char*)(file->og_data + r_idx),  // NUL is a valid char type
+                           .text_start = (char*)(in + r_idx),  // NUL is a valid char type
                            .type = TOK_ERROR,
                        },
                        "NUL byte in file");
         }
 
         // trigraph handling
-        if (file->og_data[r_idx] == '?' &&   // this char is '?
-            r_idx + 2 < file->og_size &&     // we have at least 2 more chars
-            file->og_data[r_idx + 1] == '?'  // the next char is '?'
+        if (in[r_idx] == '?' &&     // this char is '?
+            r_idx + 2 < og_size &&  // we have at least 2 more chars
+            in[r_idx + 1] == '?'    // the next char is '?'
         ) {
-            char replacement = trigraph_replace(file->og_data[r_idx + 2]);
-            buff[w_idx++] = replacement;
+            char replacement = trigraph_replace(in[r_idx + 2]);
+            out[w_idx++] = replacement;
             r_idx += 3;
             col += 3;
         }
 
         // newline handling
-        else if(file->og_data[r_idx] == '\n') {
-            buff[w_idx++] = '\n';
+        else if (in[r_idx] == '\n') {
+            out[w_idx++] = '\n';
 
             line++;
             col = 1;
-            line_start = (char*)(file->og_data) + r_idx + 1;
+            line_start = (char*)(in) + r_idx + 1;
             r_idx++;
         }
 
         // other characters
         else {
-            buff[w_idx++] = file->og_data[r_idx++];
+            out[w_idx++] = in[r_idx++];
             col++;
         }
     }
 
-    buff[w_idx] = '\0';
-    return buff;
+    out[w_idx] = '\0';
+    file->norm_data = out;
+    file->norm_size = w_idx;
 }

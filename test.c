@@ -371,6 +371,7 @@ noreturn void error_fatal(char* message);
 
 void arena_init(void);
 void* arena_alloc(size_t size);
+size_t arena_usage_KiB(void);
 
 #define ARENA_ALLOC(Type, count) \
     ((Type*)arena_alloc((count) * sizeof(Type)))
@@ -424,9 +425,18 @@ typedef struct File {
     u8* og_data;  // raw bytes
     size_t og_size;
 
-    // This is currently my data
-    // as i evolve
-    char* curr_data;
+    // This is my data after normalizing
+    char* norm_data;
+    size_t norm_size;
+
+    // This is my data after splicing
+    char* spl_data;
+    size_t spl_size;
+
+    // This is the line map
+    // line_map[logic_line] == phys_line
+    size_t* line_map;
+    size_t line_map_size;
 } File;
 
 File* file_read(char* filename, Token* org_tok);
@@ -562,12 +572,21 @@ noreturn void diag_error(Token* tok, char* msg);
 
 #endif  // DIAG_H
 
+#ifndef SPLICER_H
+#define SPLICER_H
+
+#include "file.h"
+
+void splice(File* file);
+
+#endif  // SPLICER_H
+
 #ifndef NORMALIZER_H
 #define NORMALIZER_H
 
 #include "file.h"
 
-char* normalize(File* file);
+void normalize(File* file);
 
 #endif  // NORMALIZER_H
 
@@ -1629,6 +1648,8 @@ noreturn void diag_error(Token* tok, char* msg) {
     while (true);
 }
 
+arena memory used = 154 KiB 
+
 #include "file.h"
 
 #include "arena.h"
@@ -1683,10 +1704,6 @@ File* file_read(char* filename, Token* org_tok) {
     file->og_data = buffer;
     file->og_size = size;
 
-    // assume we have valid data
-    // phase1 will make sure
-    file->curr_data = (char*)buffer;
-
     return file;
 }
 
@@ -1698,6 +1715,7 @@ File* file_read(char* filename, Token* org_tok) {
 #include "iostream.h"
 #include "linux.h"
 #include "normalizer.h"
+#include "splicer.h"
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) {
@@ -1708,10 +1726,15 @@ s32 main(s32 argc, char** argv) {
 
     File* source_file = file_read(argv[1], NULL);
 
-    char* phase1_out = normalize(source_file);
+    normalize(source_file);
 
-    iostream_print_str(IOSTREAM_STDOUT, phase1_out);
+    splice(source_file);
 
+    // iostream_print_str(IOSTREAM_STDOUT, source_file->curr_data);
+
+    iostream_print_str(IOSTREAM_STDOUT, "arena memory used = ");
+    iostream_print_uint(IOSTREAM_STDOUT, arena_usage_KiB());
+    iostream_print_str(IOSTREAM_STDOUT, " KiB \n");
     return LINUX_EXIT_SUCCESS;
 }
 
@@ -1813,6 +1836,7 @@ noreturn void error_fatal(char* message) {
 #include "stdalign.h"
 #include "utils.h"
 
+#define ARENA_KiB(x) ((x) << 10)
 #define ARENA_MiB(x) ((x) << 20)
 #define ARENA_SIZE_DEFAULT (ARENA_MiB(1))
 #define ARENA_ALIGNMENT_BYTES (alignof(max_align_t))
@@ -1873,6 +1897,55 @@ void* arena_alloc(size_t size) {
     return (void*)ptr;
 }
 
+size_t arena_usage_KiB(void) {
+    return arena.pos / ARENA_KiB(1);
+}
+
+#include "splicer.h"
+
+#include "arena.h"
+
+void splice(File* file) {
+    char* in = file->norm_data;
+    size_t norm_size = file->norm_size;
+    char* out = ARENA_ALLOC(char, norm_size + 1);
+
+    // aggresive buffering (all characters == newlines);
+    size_t* line_map = ARENA_ALLOC(size_t, norm_size + 1); // +1 because 1 based indexing
+    size_t line_map_size = 0;
+
+    size_t r_idx = 0;
+    size_t w_idx = 0;
+
+    size_t phys_line = 1;
+    size_t logic_line = 1;
+
+    while (r_idx < norm_size) {
+        if (in[r_idx] == '\\' &&      // if this char is a backslash and
+            r_idx + 1 < norm_size &&  // we have at least one more char and
+            in[r_idx + 1] == '\n'     // the next char is a newline
+        ) {
+            r_idx += 2;  // skip both
+            phys_line++;
+        }
+
+        else if (in[r_idx] == '\n') {
+            out[w_idx++] = in[r_idx++];
+            line_map[logic_line++] = phys_line++;
+        }
+
+        else {
+            out[w_idx++] = in[r_idx++];
+        }
+    }
+
+    out[w_idx] = '\0';
+    file->spl_data = out;
+    file->spl_size = w_idx;
+    file->line_map = line_map;
+    file->line_map_size = line_map_size;
+}
+
 #include "iostream.h"
 
 #include "string.h"
@@ -1912,65 +1985,70 @@ char trigraph_replace(char c) {
     }
 }
 
-char* normalize(File* file) {
-    char* buff = ARENA_ALLOC(char, file->og_size + 1);
+void normalize(File* file) {
+    u8* in = file->og_data;
+    size_t og_size = file->og_size;
+    char* out = ARENA_ALLOC(char, og_size + 1);
 
     size_t line = 1;
     size_t col = 1;
-    char* line_start = buff;
+    char* line_start = (char*)in;
 
     size_t r_idx = 0;
     size_t w_idx = 0;
-    while (r_idx < file->og_size) {
+
+    while (r_idx < og_size) {
         // NUL detection
-        if (file->og_data[r_idx] == '\0') {
+        if (in[r_idx] == '\0') {
             diag_error(&(Token){
                            .col = col,
                            .file = file,
                            .line = line,
                            .line_start = line_start,
                            .text_len = 1,
-                           .text_start = (char*)(file->og_data + r_idx),  // NUL is a valid char type
+                           .text_start = (char*)(in + r_idx),  // NUL is a valid char type
                            .type = TOK_ERROR,
                        },
                        "NUL byte in file");
         }
 
         // trigraph handling
-        if (file->og_data[r_idx] == '?' &&   // this char is '?
-            r_idx + 2 < file->og_size &&     // we have at least 2 more chars
-            file->og_data[r_idx + 1] == '?'  // the next char is '?'
+        if (in[r_idx] == '?' &&     // this char is '?
+            r_idx + 2 < og_size &&  // we have at least 2 more chars
+            in[r_idx + 1] == '?'    // the next char is '?'
         ) {
-            char replacement = trigraph_replace(file->og_data[r_idx + 2]);
-            buff[w_idx++] = replacement;
+            char replacement = trigraph_replace(in[r_idx + 2]);
+            out[w_idx++] = replacement;
             r_idx += 3;
-            continue;
+            col += 3;
         }
 
-        // we have a normal char
-        buff[w_idx++] = file->og_data[r_idx++];
+        // newline handling
+        else if (in[r_idx] == '\n') {
+            out[w_idx++] = '\n';
+
+            line++;
+            col = 1;
+            line_start = (char*)(in) + r_idx + 1;
+            r_idx++;
+        }
+
+        // other characters
+        else {
+            out[w_idx++] = in[r_idx++];
+            col++;
+        }
     }
 
-    buff[w_idx] = '\0';
-    return buff;
+    out[w_idx] = '\0';
+    file->norm_data = out;
+    file->norm_size = w_idx;
 }
 
 #include "diag.h"
 
 #include "file.h"
 #include "iostream.h"
-
-void diag_print_snippet(char* line_start) {
-    iostream_print_str(IOSTREAM_STDERR, "    | ");
-
-    size_t line_len = 0;
-    while (line_start[line_len] && line_start[line_len] != '\n') {
-        line_len++;
-    }
-    linux_write(LINUX_FD_STDERR, line_start, line_len);
-
-    iostream_print_str(IOSTREAM_STDERR, "\n");
-}
 
 void diag_print_include_trace(File* file) {
     // base case (root file provided by user)
@@ -2001,7 +2079,32 @@ void diag_print_header(char* filename, size_t line, size_t col, char* msg) {
     iostream_print_str(IOSTREAM_STDERR, "\n");
 }
 
-void diag_print_squiggles(size_t col, size_t err_len) {
+size_t num_digits(u64 num) {
+    size_t count = 1;
+    while ((num = num / 10)) count++;
+    return count;
+}
+
+void diag_print_snippet(size_t line, char* line_start) {
+    iostream_print_str(IOSTREAM_STDERR, "   ");
+    iostream_print_uint(IOSTREAM_STDERR, line);
+    iostream_print_str(IOSTREAM_STDERR, " | ");
+
+    size_t line_len = 0;
+    while (line_start[line_len] && line_start[line_len] != '\n') {
+        line_len++;
+    }
+    linux_write(LINUX_FD_STDERR, line_start, line_len);
+
+    iostream_print_str(IOSTREAM_STDERR, "\n");
+}
+
+void diag_print_squiggles(size_t line, size_t col, size_t err_len) {
+    for (size_t i = 0; i < 3 + num_digits(line) + 1; i++) {
+        iostream_print_str(IOSTREAM_STDERR, " ");
+    }
+    iostream_print_str(IOSTREAM_STDERR, "| ");
+
     for (size_t i = 0; i < col; ++i) {
         iostream_print_str(IOSTREAM_STDERR, " ");
     }
@@ -2020,9 +2123,9 @@ noreturn void diag_error(Token* tok, char* msg) {
 
     diag_print_header(tok->file->name, tok->line, tok->col, msg);
 
-    diag_print_snippet(tok->line_start);
+    diag_print_snippet(tok->line, tok->line_start);
 
-    diag_print_squiggles(tok->col, tok->text_len);
-    // trap
-    while (true);
+    diag_print_squiggles(tok->line, tok->col, tok->text_len);
+
+    linux_exit(LINUX_EXIT_FAILURE);
 }

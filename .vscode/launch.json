@@ -6,7 +6,7 @@
             "type": "lldb",       // CHANGED: "cppdbg" -> "lldb"
             "request": "launch",
             "program": "${workspaceFolder}/mcc",
-            "args": ["./build/main.o"],
+            "args": ["./src/main.c"],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Make Build"
         }

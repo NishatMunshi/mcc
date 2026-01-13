@@ -3,6 +3,6 @@
 
 #include "file.h"
 
-char* normalize(File* file);
+void normalize(File* file);
 
 #endif  // NORMALIZER_H
