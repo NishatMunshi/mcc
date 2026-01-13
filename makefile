@@ -48,9 +48,9 @@ format:
 	@find $(SRC_DIR) $(INC_DIR) -name '*.[ch]' | xargs clang-format -i
 
 # Testing (Updated to pass the target binary itself if needed)
-test:
-	@find . -name "*.[ch]" -not -name "test.c" -exec awk 'FNR==1{print ""}1' {} + > test.c
-	@./$(TARGET) ./src/main.c ./test.s
+test: $(TARGET)
+	@find . -name "*.h" -not -name "test.h" -exec awk 'FNR==1{print ""}1' {} + > test.h
+	@./$(TARGET) ./src/main.c
 
 # Clean
 clean:

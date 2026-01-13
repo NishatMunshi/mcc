@@ -1,44 +1,12 @@
 Phase 1: normalizer.h
-
-
-
-Why: "Normalizing" data is a standard CS term. You are taking weird input (Trigraphs) and standardizing it.
-
 Phase 2: splicer.h
-
-
-
-Why: "Splicing" is the exact term used in the C standard for joining lines. It sounds precise and mechanical.
-
 Phase 3: tokenizer.h (or lexer.h)
-
-
-
-Why: The standard term. tokenizer sounds a bit more substantial than lexer.
-
 Phase 4: expander.h
-
-
-
-Why: This phase is primarily about macro expansion. It describes exactly what the code is doing to the stream.
-
 Phase 5: converter.h
-
-
-
-Why: You are converting from the Source Character Set to the Execution Character Set.
-
 Phase 6: concatenator.h
-
-
-
-Why: A bit of a mouthful, but it is the mathematically correct term for joining strings.
-
 Phase 7: parser.h
 
-
-
-Why: The classic, undeniable name for the final stage.
-
-
-
+What I am thinking, we should make token logical line for now.
+I have logical char buffer inside File. We point there for now.
+later I will implement the column mapping and remove the line_start pointer from token.
+We will calculate the whole snippet at crash time and use the caret to point exactly where the token was in the raw source code

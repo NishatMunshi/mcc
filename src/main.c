@@ -7,6 +7,7 @@
 #include "linux.h"
 #include "normalizer.h"
 #include "splicer.h"
+#include "tokenizer.h"
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) {
@@ -21,7 +22,12 @@ s32 main(s32 argc, char** argv) {
 
     splice(source_file);
 
-    // iostream_print_str(IOSTREAM_STDOUT, source_file->curr_data);
+    TokenVector* tokens = tokenize(source_file);
+
+    for (size_t i = 0; i < tokens->count; ++i) {
+        Token* tok = tokens->data[i];
+        token_print(tok);
+    }
 
     iostream_print_str(IOSTREAM_STDOUT, "arena memory used = ");
     iostream_print_uint(IOSTREAM_STDOUT, arena_usage_KiB());

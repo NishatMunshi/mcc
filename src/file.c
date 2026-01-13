@@ -48,9 +48,21 @@ File* file_read(char* filename, Token* org_tok) {
     File* file = ARENA_ALLOC(File, 1);
 
     file->org_tok = org_tok;
+
     file->name = filename;
+
     file->og_data = buffer;
     file->og_size = size;
+
+    // Init by assuming data is valid
+    // the engines will report errors
+    // based on this init FOR NOW
+    // until i implement column maps
+    file->norm_data = (char*)buffer;
+    file->norm_size = size;
+
+    file->spl_data = (char*)buffer;
+    file->spl_size = size;
 
     return file;
 }

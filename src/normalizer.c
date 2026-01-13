@@ -25,7 +25,6 @@ void normalize(File* file) {
 
     size_t line = 1;
     size_t col = 1;
-    char* line_start = (char*)in;
 
     size_t r_idx = 0;
     size_t w_idx = 0;
@@ -34,10 +33,9 @@ void normalize(File* file) {
         // NUL detection
         if (in[r_idx] == '\0') {
             diag_error(&(Token){
-                           .col = col,
+                           .logic_col = col,
                            .file = file,
-                           .line = line,
-                           .line_start = line_start,
+                           .logic_line = line,
                            .text_len = 1,
                            .text_start = (char*)(in + r_idx),  // NUL is a valid char type
                            .type = TOK_ERROR,
@@ -56,13 +54,23 @@ void normalize(File* file) {
             col += 3;
         }
 
+        /*
+        Physical source file multibyte characters are mapped,
+        in an implementation- defined manner,
+        to the source character set
+        (introducing new-line characters for end-of-line indicators) if necessary.
+        */
+        /*
+        This is handled in x64 linux butomatically
+        i.e. the mapping is an idenitity function
+        */
+
         // newline handling
         else if (in[r_idx] == '\n') {
             out[w_idx++] = '\n';
 
             line++;
             col = 1;
-            line_start = (char*)(in) + r_idx + 1;
             r_idx++;
         }
 

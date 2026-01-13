@@ -6,7 +6,9 @@
 
 typedef enum TokenType {
     // --- Internal Control ---
-    TOK_EOF,    // End of File
+    TOK_EOF,  // End of File
+    TOK_NEWLINE,
+    TOK_WHITESPACE,
     TOK_ERROR,  // Lexical Error
 
     // --- C11 Keywords (6.4.1) ---
@@ -56,7 +58,8 @@ typedef enum TokenType {
     TOK_THREAD_LOCAL,   // _Thread_local
 
     // --- Identifiers (6.4.2) ---
-    TOK_IDENTIFIER,  // main, x, my_var
+    TOK_PP_IDENT,
+    TOK_IDENT,  // main, x, my_var
 
     // --- Constants (6.4.4) ---
     TOK_PP_NUMBER,   // 123, 0xFF, 0777, 3.14, 1.2e-10, 0x1.fp3
@@ -127,12 +130,10 @@ typedef struct {
     // I live inside
     File* file;
 
-    // inside line
-    size_t line;
-    char* line_start;
-
-    // at
-    size_t col;
+    // FOR NOW THESE POINT TO SPLICED BUFFER
+    // TODO: USE PHYSICAL ADDRESS
+    size_t logic_line;
+    size_t logic_col;
     char* text_start;
     size_t text_len;
 
@@ -143,9 +144,11 @@ typedef struct {
 // naming is cruital for use with
 // the macro in vector.h
 typedef struct {
-    Token* data;
+    Token** data;
     size_t count;
     size_t cap;
 } TokenVector;
+
+void token_print(Token* tok);
 
 #endif  // TOKEN_H

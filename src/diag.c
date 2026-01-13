@@ -16,7 +16,7 @@ void diag_print_include_trace(File* file) {
         iostream_print_str(IOSTREAM_STDERR, "in file included from");
         iostream_print_str(IOSTREAM_STDERR, org->file->name);
         iostream_print_str(IOSTREAM_STDERR, ":");
-        iostream_print_uint(IOSTREAM_STDERR, org->line);
+        iostream_print_uint(IOSTREAM_STDERR, org->logic_line);
         iostream_print_str(IOSTREAM_STDERR, ":\n");
     }
 }
@@ -38,9 +38,24 @@ size_t num_digits(u64 num) {
     return count;
 }
 
-void diag_print_snippet(size_t line, char* line_start) {
+void diag_print_snippet(File* file, size_t logic_line) {
+    size_t idx = 0;
+    size_t curr_logic_line = 1;
+    while (idx < file->spl_size) {
+        if (curr_logic_line == logic_line) {
+            break;
+        }
+
+        if (file->spl_data[idx] == '\n') {
+            curr_logic_line++;
+        }
+        idx++;
+    }
+
+    char* line_start = file->spl_data + idx;
+
     iostream_print_str(IOSTREAM_STDERR, "   ");
-    iostream_print_uint(IOSTREAM_STDERR, line);
+    iostream_print_uint(IOSTREAM_STDERR, logic_line);
     iostream_print_str(IOSTREAM_STDERR, " | ");
 
     size_t line_len = 0;
@@ -58,7 +73,7 @@ void diag_print_squiggles(size_t line, size_t col, size_t err_len) {
     }
     iostream_print_str(IOSTREAM_STDERR, "| ");
 
-    for (size_t i = 0; i < col; ++i) {
+    for (size_t i = 0; i < col - 1; ++i) {
         iostream_print_str(IOSTREAM_STDERR, " ");
     }
 
@@ -74,11 +89,11 @@ void diag_print_squiggles(size_t line, size_t col, size_t err_len) {
 noreturn void diag_error(Token* tok, char* msg) {
     diag_print_include_trace(tok->file);
 
-    diag_print_header(tok->file->name, tok->line, tok->col, msg);
+    diag_print_header(tok->file->name, tok->logic_line, tok->logic_col, msg);
 
-    diag_print_snippet(tok->line, tok->line_start);
+    diag_print_snippet(tok->file, tok->logic_line);
 
-    diag_print_squiggles(tok->line, tok->col, tok->text_len);
+    diag_print_squiggles(tok->logic_line, tok->logic_col, tok->text_len);
 
     linux_exit(LINUX_EXIT_FAILURE);
 }
