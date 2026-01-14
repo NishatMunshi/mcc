@@ -4,7 +4,7 @@
 #include "panic.h"
 #include "vector.h"
 
-char map(u8 byte) {
+static char map(u8 byte) {
     return (char)byte;
 }
 
