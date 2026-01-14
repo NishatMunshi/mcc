@@ -10,7 +10,7 @@ s64 fputu(s32 stream, u64 num) {
     u64 pref = num / 10;
 
     if (pref != 0) {
-        fputu(stream, pref);
+        return fputu(stream, pref);
     }
 
     char c = '0' + (num % 10);

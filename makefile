@@ -60,8 +60,8 @@ format:
 
 # Testing (Updated to pass the target binary itself if needed)
 test: $(TARGET)
-	@find . -name "*.h" -not -name "test.h" -exec awk 'FNR==1{print ""}1' {} + > test.h
-	@./$(TARGET) ./src/main.c
+	@find . -name "*.[ch]" -not -name "test.c" -exec awk 'FNR==1{print ""}1' {} + > test.c
+	@./$(TARGET) ./test.c > test.txt
 
 # Clean
 clean:

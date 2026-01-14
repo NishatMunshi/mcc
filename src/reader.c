@@ -65,10 +65,11 @@ ByteVector* read(char* path, PPToken* pptok) {
 
     ByteVector* bytes = ARENA_ALLOC(ByteVector, 1);
     for (size_t i = 0; i < definition->size; ++i) {
-        Byte* byte = ARENA_ALLOC(Byte, 1);
-        byte->value = definition->content[i];
-        byte->inclusion = inclusion;
-        byte->offset = i;
+        Byte byte = {
+            .value = definition->content[i],
+            .inclusion = inclusion,
+            .offset = i,
+        };
 
         vector_push(bytes, byte);
     }

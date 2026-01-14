@@ -30,9 +30,9 @@ typedef struct Byte {
     size_t offset;
 } Byte;
 
-// containter, carrying pointers, not objects
+// containter, not pointers, but objects
 typedef struct ByteVector {
-    Byte** data;
+    Byte* data;
 
     size_t count;
     size_t capacity;

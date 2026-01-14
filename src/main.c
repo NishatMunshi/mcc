@@ -7,6 +7,7 @@
 #include "panic.h"
 #include "reader.h"
 #include "splicer.h"
+#include "tokenizer.h"
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) panic("no input file");
@@ -14,13 +15,12 @@ s32 main(s32 argc, char** argv) {
     arena_init();
 
     ByteVector* bytes = read(argv[1], nullptr);
-
     SourceCharVector* source_chars = normalize(bytes);
-
     SplicedCharVector* spliced_chars = splice(source_chars);
+    PPTokenVector* pptokens = tokenize(spliced_chars);
 
-    for (size_t i = 0; i < spliced_chars->count; ++i) {
-        putc(spliced_chars->data[i]->value);
+    for (size_t i = 0; i < pptokens->count; ++i) {
+        pptoken_print(pptokens->data[i]);
     }
 
     size_t arena_usage = arena_usage_KiB();

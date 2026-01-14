@@ -4,30 +4,32 @@
 #include "splicer.h"
 
 typedef enum PPTokenKind {
-    PP_EOF = 0,
-    PP_HEADER_NAME,  // <stdio.h>
-    PP_IDENTIFIER,   // main
-    PP_NUMBER,       // 123
-    PP_CHAR,         // 'a'
-    PP_STRING,       // "text"
-    PP_PUNCTUATOR,   // +
-    PP_OTHER         // @
+    PP_WHITESPACE = 0,
+    PP_NEWLINE,
+    PP_HEADERNAME,  // <stdio.h>
+    PP_IDENTIFIER,  // main
+    PP_NUMBER,      // 123
+    PP_CHAR,        // 'a'
+    PP_STRING,      // "text"
+    PP_PUNCTUATOR,  // +
+    PP_OTHER        // @
 } PPTokenKind;
 
 typedef struct PPToken {
     PPTokenKind kind;
 
-    SplicedChar* sourcechar_start;
-    size_t len;
+    SplicedChar* splicedchar_start;
+    size_t length;
 } PPToken;
 
 typedef struct PPTokenVector {
-    PPToken** data;
+    PPToken* data;
 
     size_t count;
     size_t capacity;
 } PPTokenVector;
 
 PPTokenVector* tokenize(SplicedCharVector* spliced_chars);
+void pptoken_print(PPToken pptoken);
 
 #endif  // TOKENIZER_H
