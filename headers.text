@@ -1,12 +1,84 @@
-Phase 1: normalizer.h
-Phase 2: splicer.h
-Phase 3: tokenizer.h (or lexer.h)
-Phase 4: expander.h
-Phase 5: converter.h
-Phase 6: concatenator.h
-Phase 7: parser.h
+#ifndef READER_H
+#define READER_H
 
-What I am thinking, we should make token logical line for now.
-I have logical char buffer inside File. We point there for now.
-later I will implement the column mapping and remove the line_start pointer from token.
-We will calculate the whole snippet at crash time and use the caret to point exactly where the token was in the raw source code
+typedef struct PPToken PPToken;
+typedef struct SourceFile SourceFile;
+typedef struct Byte Byte;
+typedef struct ByteVector ByteVector;
+
+ByteVector* read(PPToken* filename_token);
+
+#endif // READER_H
+
+#ifndef NORMALIZER_H
+#define NORMALIZER_H
+
+#include "reader.h"
+
+typedef struct SourceChar SourceChar;
+typedef struct SourceCharVector SourceCharVector;
+
+SourceCharVector* normalize(ByteVector* source_context);
+
+#endif  // NORMALIZER_H
+
+#ifndef SPLICER_H
+#define SPLICER_H
+
+#include "normalizer.h"
+
+typedef struct SplicedChar SplicedChar;
+typedef struct SplicedCharVector SplicedCharVector;
+
+SplicedCharVector* splice(SourceCharVector* source_chars);
+
+#endif  // SPLICER_H
+
+#ifndef TOKENIZER_H
+#define TOKENIZER_H
+
+#include "splicer.h"
+
+typedef struct PPToken PPToken;
+typedef struct PPTokenVector PPTokenVector;
+
+PPTokenVector* tokenize(SplicedCharVector* spliced_chars);
+
+#endif  // TOKENIZER_H
+
+#ifndef EXPANDER_H
+#define EXPANDER_H
+
+#include "tokenizer.h"
+
+typedef struct ExpandedToken ExpandedToken;
+typedef struct ExpandedTokenVector ExpandedTokenVector;
+
+ExpandedTokenVector* expand(PPTokenVector* pp_tokens);
+
+#endif // EXPANDER_H
+
+#ifndef CONVERTER_H
+#define CONVERTER_H
+
+#include "expander.h"
+
+typedef struct ConvertedToken ConvertedToken;
+typedef struct ConvertedTokenVector ConvertedTokenVector;
+
+ConvertedTokenVector* convert(ExpandedTokenVector* expanded_tokens);
+
+#endif // CONVERTER_H
+
+#ifndef CONCATENATOR_H
+#define CONCATENATOR_H
+
+#include "converter.h"
+
+typedef struct CToken CToken;
+typedef struct CTokenVector CTokenVector;
+
+CTokenVector* concatenate(ConvertedTokenVector* c_tokens);
+
+#endif // CONCATENATOR_H
+

@@ -19,7 +19,7 @@ extern s64 _linux_syscall(
     s64 rax   // C puts it in: [rsp + 8]
 );
 
-noreturn void linux_exit(u8 code) {
+[[noreturn]] void linux_exit(u8 code) {
     _linux_syscall((s64)code, 0, 0, 0, 0, 0, LINUX_SYSCALL_EXIT);
     while (true);
 }

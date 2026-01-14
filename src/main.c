@@ -1,36 +1,31 @@
 #include "main.h"
 
 #include "arena.h"
-#include "error.h"
-#include "file.h"
-#include "iostream.h"
+#include "io.h"
 #include "linux.h"
 #include "normalizer.h"
+#include "panic.h"
+#include "reader.h"
 #include "splicer.h"
-#include "tokenizer.h"
 
 s32 main(s32 argc, char** argv) {
-    if (argc < 2) {
-        error_fatal("no input file");
-    }
+    if (argc < 2) panic("no input file");
 
     arena_init();
 
-    File* source_file = file_read(argv[1], NULL);
+    ByteVector* bytes = read(argv[1], nullptr);
 
-    normalize(source_file);
+    SourceCharVector* source_chars = normalize(bytes);
 
-    splice(source_file);
+    SplicedCharVector* spliced_chars = splice(source_chars);
 
-    TokenVector* tokens = tokenize(source_file);
-
-    for (size_t i = 0; i < tokens->count; ++i) {
-        Token* tok = tokens->data[i];
-        token_print(tok);
+    for (size_t i = 0; i < spliced_chars->count; ++i) {
+        putc(spliced_chars->data[i]->value);
     }
 
-    iostream_print_str(IOSTREAM_STDOUT, "arena memory used = ");
-    iostream_print_uint(IOSTREAM_STDOUT, arena_usage_KiB());
-    iostream_print_str(IOSTREAM_STDOUT, " KiB \n");
+    size_t arena_usage = arena_usage_KiB();
+    puts("arena use = ");
+    putu(arena_usage);
+    puts(" KiB\n");
     return LINUX_EXIT_SUCCESS;
 }

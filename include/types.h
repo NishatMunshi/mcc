@@ -1,20 +1,18 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-// strict standards
-#include "stdbool.h"
-#include "stddef.h"
-#include "stdint.h"
+typedef unsigned long long u64;
+typedef unsigned int u32;
+typedef unsigned char u8;
 
-// lazy short types for this project
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
+typedef long long s64;
+typedef int s32;
 
-typedef int64_t s64;
-typedef int32_t s32;
-typedef int16_t s16;
-typedef int8_t s8;
+typedef u64 size_t;
+
+typedef union {
+    long long ll;
+    long double ld;
+} max_align_t;
 
 #endif

@@ -5,9 +5,20 @@
 TARGET := mcc
 CC := clang
 
-# -ffreestanding: Tells compiler we don't have a standard library
-# -fno-builtin: Prevents compiler from optimizing code into hidden calls to memcmp/memcpy
-CFLAGS := -std=c11 -Wall -Wextra -Wpedantic -Werror -g -Iinclude -ffreestanding -fno-builtin -nostdinc
+# 1. Standards & Safety (The strict parent)
+CFLAGS  = -std=c23 -Wall -Wextra -Wpedantic -Werror 
+
+# 2. Isolation (The hermitage)
+CFLAGS += -ffreestanding -fno-builtin -nostdinc -undef 
+
+# 3. Runtime Stripping (The "God Mode" extensions)
+CFLAGS += -nostdlib -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables
+
+# 4. Memory Model (The raw pointer access)
+CFLAGS += -fno-strict-aliasing -fno-common
+
+# 5. Debugging & Includes
+CFLAGS += -g -Iinclude
 
 # -nostdlib: Do NOT link standard startup files (crt1.o) or libc.
 # -no-pie: Disable Position Independent Executable (simplifies address calculation for now)

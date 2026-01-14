@@ -1,8 +1,7 @@
 #include "arena.h"
 
-#include "error.h"
 #include "linux.h"
-#include "stdalign.h"
+#include "panic.h"
 #include "utils.h"
 
 #define ARENA_KiB(x) ((x) << 10)
@@ -13,13 +12,16 @@
     (((number) + ARENA_ALIGNMENT_BYTES - 1) & ~(ARENA_ALIGNMENT_BYTES - 1))
 
 typedef struct Arena {
-    size_t cap;
-    size_t pos;
+    size_t capacity;
+    size_t position;
     u8* heap;
 } Arena;
 
-// the only global variable
-static Arena arena;
+static Arena arena = {
+    .heap = nullptr,
+    .capacity = 0,
+    .position = 0,
+};
 
 static u8* arena_ask_os_for_mem(size_t request) {
     // get current break
@@ -32,40 +34,38 @@ static u8* arena_ask_os_for_mem(size_t request) {
     u8* next_brk = linux_brk(next_brk_req);
 
     // handle OS refusal
-    if (next_brk != next_brk_req) {
-        error_fatal("out of memory");
-    }
+    if (next_brk != next_brk_req) panic("out of memory");
 
     return curr_brk;
+}
+
+static void arena_grow(size_t needed_size) {
+    size_t request = UTILS_MAX(needed_size, ARENA_SIZE_DEFAULT);
+    arena_ask_os_for_mem(request);
+    arena.capacity += request;
 }
 
 void arena_init(void) {
     u8* heap_start = arena_ask_os_for_mem(ARENA_SIZE_DEFAULT);
 
-    arena.cap = ARENA_SIZE_DEFAULT;
-    arena.pos = 0;
+    arena.capacity = ARENA_SIZE_DEFAULT;
+    arena.position = 0;
     arena.heap = heap_start;
-}
-
-static void arena_grow(size_t needed_size) {
-    size_t req = UTILS_MAX(needed_size, ARENA_SIZE_DEFAULT);
-    arena_ask_os_for_mem(req);
-    arena.cap += req;
 }
 
 void* arena_alloc(size_t size) {
     size_t aligned_size = ARENA_ALIGN_UP(size);
 
-    if (arena.pos + aligned_size > arena.cap) {
+    if (arena.position + aligned_size > arena.capacity) {
         arena_grow(aligned_size);
     }
 
-    u8* ptr = arena.heap + arena.pos;
-    arena.pos += aligned_size;
+    u8* pointer = arena.heap + arena.position;
+    arena.position += aligned_size;
 
-    return (void*)ptr;
+    return (void*)pointer;
 }
 
 size_t arena_usage_KiB(void) {
-    return arena.pos / ARENA_KiB(1);
+    return arena.position / ARENA_KiB(1);
 }

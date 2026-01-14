@@ -1,8 +1,9 @@
-#ifndef STRING_H
-#define STRING_H
+#ifndef _STRING_H
+#define _STRING_H
 
 #include "types.h"
 
-size_t str_len(char* cstr);
+size_t strlen(char* cstr);
+bool streq(char* cstr1, char* cstr2);
 
-#endif  // STRING_H
+#endif  // _STRING_H

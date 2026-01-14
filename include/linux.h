@@ -1,7 +1,6 @@
 #ifndef LINUX_H
 #define LINUX_H
 
-#include "stdnoreturn.h"
 #include "types.h"
 
 #define LINUX_EXIT_FAILURE ((u8)1)
@@ -12,14 +11,14 @@
 
 #define LINUX_BRK_CURRENT ((u8*)0)
 
-#define LINUX_FILE_MODE_READONLY 0
-#define LINUX_FILE_MODE_WRITEONLY 1
-#define LINUX_FILE_MODE_READWRITE 2
-#define LINUX_FILE_MODE_CREAT 64
+#define LINUX_FILE_FLAG_READONLY 0
+#define LINUX_FILE_FLAG_WRITEONLY 1
+#define LINUX_FILE_FLAG_READWRITE 2
+#define LINUX_FILE_FLAG_CREAT 64
 
-#define LINUX_FILE_PERM_USER_RW 438
+#define LINUX_FILE_MODE_USER_RW 438
 
-noreturn void linux_exit(u8 code);
+[[noreturn]] void linux_exit(u8 code);
 s64 linux_write(s32 fd, char* buf, size_t len);
 // guaraantees zeroed out pages on first request
 // which will be our only request since we dont free
