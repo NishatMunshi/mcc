@@ -9,12 +9,13 @@ s64 fputc(s32 stream, char c) {
 s64 fputu(s32 stream, u64 num) {
     u64 pref = num / 10;
 
+    s64 num_written = 0;
     if (pref != 0) {
-        return fputu(stream, pref);
+        num_written += fputu(stream, pref);
     }
 
     char c = '0' + (num % 10);
-    return fputc(stream, c);
+    return num_written + fputc(stream, c);
 }
 
 s64 fputs(s32 stream, char* cstr) {
