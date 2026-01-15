@@ -38,6 +38,6 @@ typedef struct ByteVector {
     size_t capacity;
 } ByteVector;
 
-ByteVector* read(char* path, PPToken* pptok);
+ByteVector read(char* path, PPToken* pptok);
 
 #endif  // READER_H

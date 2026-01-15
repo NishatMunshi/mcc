@@ -16,6 +16,6 @@ typedef struct ExpandedTokenVector {
     size_t capacity;
 } ExpandedTokenVector;
 
-ExpandedTokenVector* expand(PPTokenVector* pp_tokens);
+ExpandedTokenVector expand(PPTokenVector pp_tokens);
 
 #endif  // EXPANDER_H

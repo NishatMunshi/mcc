@@ -47,7 +47,7 @@
 #define vector_append(dest, src)                                                                       \
     do {                                                                                               \
         /* 1. Calculate Required Size */                                                               \
-        size_t _req_count = (dest)->count + (src)->count;                                              \
+        size_t _req_count = (dest)->count + (src).count;                                              \
                                                                                                        \
         /* 2. Check Capacity */                                                                        \
         if (_req_count > (dest)->capacity) {                                                           \
@@ -68,8 +68,8 @@
         }                                                                                              \
                                                                                                        \
         /* 6. Append New Data */                                                                       \
-        if ((src)->count > 0) {                                                                        \
-            memcpy((dest)->data + (dest)->count, (src)->data, (src)->count * sizeof(*((dest)->data))); \
+        if ((src).count > 0) {                                                                        \
+            memcpy((dest)->data + (dest)->count, (src).data, (src).count * sizeof(*((dest)->data))); \
             (dest)->count = _req_count;                                                                \
         }                                                                                              \
     } while (0)

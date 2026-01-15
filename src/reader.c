@@ -57,14 +57,14 @@ static FileDefinition* get_definition(char* path) {
     return definition;
 }
 
-ByteVector* read(char* path, PPToken* pptok) {
+ByteVector read(char* path, PPToken* pptok) {
     FileDefinition* definition = get_definition(path);
 
     FileInclusion* inclusion = ARENA_ALLOC(FileInclusion, 1);
     inclusion->definition = definition;
     inclusion->pptok = pptok;
 
-    ByteVector* bytes = ARENA_ALLOC(ByteVector, 1);
+    ByteVector bytes = {0};
     for (size_t i = 0; i < definition->size; ++i) {
         Byte byte = {
             .value = definition->content[i],
@@ -72,7 +72,7 @@ ByteVector* read(char* path, PPToken* pptok) {
             .offset = i,
         };
 
-        vector_push(bytes, byte);
+        vector_push(&bytes, byte);
     }
 
     return bytes;

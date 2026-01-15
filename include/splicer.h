@@ -16,6 +16,6 @@ typedef struct SplicedCharVector {
     size_t capacity;
 } SplicedCharVector;
 
-SplicedCharVector* splice(SourceCharVector* source_chars);
+SplicedCharVector splice(SourceCharVector source_chars);
 
 #endif  // SPLICER_H

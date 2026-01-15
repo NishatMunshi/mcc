@@ -29,7 +29,7 @@ typedef struct PPTokenVector {
     size_t capacity;
 } PPTokenVector;
 
-PPTokenVector* tokenize(SplicedCharVector* spliced_chars);
+PPTokenVector tokenize(SplicedCharVector spliced_chars);
 void pptoken_print(PPToken pptoken);
 
 #endif  // TOKENIZER_H

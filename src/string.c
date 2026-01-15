@@ -53,3 +53,13 @@ void memcpy(void* dest, void* src, size_t num_bytes) {
         d[i] = s[i];
     }
 }
+
+void *memset(void *ptr, int value, size_t num) {
+    u8* dest = (u8*)ptr;
+    u8 data = (u8) (value & 0xff);
+
+    for(size_t i =0 ;i < num; ++i ) {
+        dest[i] = data;
+    }
+    return ptr;
+}

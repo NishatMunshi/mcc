@@ -15,15 +15,15 @@ s32 main(s32 argc, char** argv) {
 
     arena_init();
 
-    ByteVector* bytes = read(argv[1], nullptr);
-    SourceCharVector* source_chars = normalize(bytes);
-    SplicedCharVector* spliced_chars = splice(source_chars);
-    PPTokenVector* pptokens = tokenize(spliced_chars);
-    ExpandedTokenVector* expanded_tokens = expand(pptokens);
+    ByteVector bytes = read(argv[1], nullptr);
+    SourceCharVector source_chars = normalize(bytes);
+    SplicedCharVector spliced_chars = splice(source_chars);
+    PPTokenVector pptokens = tokenize(spliced_chars);
+    ExpandedTokenVector expanded_tokens = expand(pptokens);
 
-    for (size_t i = 0; i < expanded_tokens->count; ++i) {
+    for (size_t i = 0; i < expanded_tokens.count; ++i) {
         // colors the tokens according to type
-        pptoken_print(*(expanded_tokens->data[i].pptoken));
+        pptoken_print(*(expanded_tokens.data[i].pptoken));
     }
 
     size_t arena_usage = arena_usage_KiB();

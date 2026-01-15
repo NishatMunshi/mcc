@@ -16,6 +16,6 @@ typedef struct SourceCharVector {
     size_t capacity;
 } SourceCharVector;
 
-SourceCharVector* normalize(ByteVector* bytes);
+SourceCharVector normalize(ByteVector bytes);
 
 #endif  // NORMALIZER_H
