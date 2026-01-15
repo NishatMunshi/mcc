@@ -20,6 +20,7 @@ s32 main(s32 argc, char** argv) {
     PPTokenVector* pptokens = tokenize(spliced_chars);
 
     for (size_t i = 0; i < pptokens->count; ++i) {
+        // colors the tokens according to type
         pptoken_print(pptokens->data[i]);
     }
 
