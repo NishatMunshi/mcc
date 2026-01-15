@@ -20,8 +20,6 @@ s32 main(s32 argc, char** argv) {
     PPTokenVector* pptokens = tokenize(spliced_chars);
 
     for (size_t i = 0; i < pptokens->count; ++i) {
-        putu(i + 1);
-        puts(": ");
         pptoken_print(pptokens->data[i]);
     }
 

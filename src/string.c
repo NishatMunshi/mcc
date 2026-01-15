@@ -15,8 +15,7 @@ bool streq(char* a, char* b) {
 void memcpy(void* dest, void* src, size_t num_bytes) {
     u8* d = (u8*)dest;
     u8* s = (u8*)src;
-    for(size_t i = 0; i <num_bytes; ++i) {
+    for (size_t i = 0; i < num_bytes; ++i) {
         d[i] = s[i];
     }
 }
-

@@ -5,14 +5,14 @@
 
 typedef enum PPTokenKind {
     PP_WHITESPACE = 0,
-    PP_NEWLINE,
+    PP_STRING,      // "text"
+    PP_CHAR,        // 'a'
     PP_HEADERNAME,  // <stdio.h>
     PP_IDENTIFIER,  // main
     PP_NUMBER,      // 123
-    PP_CHAR,        // 'a'
-    PP_STRING,      // "text"
     PP_PUNCTUATOR,  // +
-    PP_OTHER        // @
+    PP_OTHER,        // @
+    PP_NEWLINE
 } PPTokenKind;
 
 typedef struct PPToken {
