@@ -1,7 +1,7 @@
-#include "panic.h"
+#include <panic.h>
 
-#include "io.h"
-#include "linux.h"
+#include <io.h>
+#include <linux.h>
 
 [[noreturn]] void panic(char* message) {
     fputs(stderr, "mcc: error: ");

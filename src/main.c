@@ -1,13 +1,14 @@
-#include "main.h"
+#include <main.h>
 
-#include "arena.h"
-#include "io.h"
-#include "linux.h"
-#include "normalizer.h"
-#include "panic.h"
-#include "reader.h"
-#include "splicer.h"
-#include "tokenizer.h"
+#include <arena.h>
+#include <expander.h>
+#include <io.h>
+#include <linux.h>
+#include <normalizer.h>
+#include <panic.h>
+#include <reader.h>
+#include <splicer.h>
+#include <tokenizer.h>
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) panic("no input file");
@@ -18,10 +19,11 @@ s32 main(s32 argc, char** argv) {
     SourceCharVector* source_chars = normalize(bytes);
     SplicedCharVector* spliced_chars = splice(source_chars);
     PPTokenVector* pptokens = tokenize(spliced_chars);
+    ExpandedTokenVector* expanded_tokens = expand(pptokens);
 
-    for (size_t i = 0; i < pptokens->count; ++i) {
+    for (size_t i = 0; i < expanded_tokens->count; ++i) {
         // colors the tokens according to type
-        pptoken_print(pptokens->data[i]);
+        pptoken_print(*(expanded_tokens->data[i].pptoken));
     }
 
     size_t arena_usage = arena_usage_KiB();

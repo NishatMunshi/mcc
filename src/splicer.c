@@ -1,8 +1,8 @@
-#include "splicer.h"
+#include <splicer.h>
 
-#include "arena.h"
-#include "panic.h"
-#include "vector.h"
+#include <arena.h>
+#include <panic.h>
+#include <vector.h>
 
 SplicedCharVector* splice(SourceCharVector* source_chars) {
     SplicedCharVector* spliced_chars = ARENA_ALLOC(SplicedCharVector, 1);

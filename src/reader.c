@@ -1,10 +1,11 @@
-#include "reader.h"
+#include <reader.h>
 
-#include "arena.h"
-#include "linux.h"
-#include "panic.h"
-#include "string.h"
-#include "vector.h"
+#include <arena.h>
+#include <io.h>
+#include <linux.h>
+#include <panic.h>
+#include <string.h>
+#include <vector.h>
 
 typedef struct FileDefinitionMap {
     FileDefinition** data;
@@ -35,7 +36,7 @@ static FileDefinition* get_definition(char* path) {
 
         s32 fd = linux_open(path, LINUX_FILE_FLAG_READONLY, 0);
         if (fd < 0) panic("failed to open file");
-
+        
         linux_stat_t stat;
         if (linux_fstat(fd, &stat) < 0) panic("failed to stat file");
         size_t size = stat.st_size;

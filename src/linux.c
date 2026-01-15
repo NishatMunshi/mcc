@@ -1,4 +1,4 @@
-#include "linux.h"
+#include <linux.h>
 
 #define LINUX_SYSCALL_WRITE 1
 #define LINUX_SYSCALL_EXIT 60

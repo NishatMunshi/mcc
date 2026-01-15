@@ -1,6 +1,6 @@
-#include "io.h"
+#include <io.h>
 
-#include "string.h"
+#include <string.h>
 
 s64 fputc(s32 stream, char c) {
     return linux_write(stream, &c, 1);

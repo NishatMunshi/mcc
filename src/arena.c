@@ -1,8 +1,8 @@
-#include "arena.h"
+#include <arena.h>
 
-#include "linux.h"
-#include "panic.h"
-#include "utils.h"
+#include <linux.h>
+#include <panic.h>
+#include <utils.h>
 
 #define ARENA_KiB(x) ((x) << 10)
 #define ARENA_MiB(x) ((x) << 20)

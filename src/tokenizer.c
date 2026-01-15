@@ -1,9 +1,9 @@
-#include "tokenizer.h"
+#include <tokenizer.h>
 
-#include "arena.h"
-#include "io.h"
-#include "panic.h"
-#include "vector.h"
+#include <arena.h>
+#include <io.h>
+#include <panic.h>
+#include <vector.h>
 
 static PPToken pptoken_create(PPTokenKind kind, SplicedChar* splicedchar_start, size_t length) {
     PPToken pptoken = {
@@ -440,7 +440,7 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         ) {
             pptoken = tokenize_block_comment(spliced_chars, i);
         }
-        
+
         // single line comments
         else if (
             spliced_chars->data[i].value == '/' &&
@@ -463,20 +463,20 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         ) {
             pptoken = tokenize_whitespace(spliced_chars, i);
         }
-        
+
         // identifiers
         else if (
             is_ident_begin(spliced_chars->data[i].value)
         ) {
             pptoken = tokenize_identifier(spliced_chars, i);
         }
-        
+
         // pp numbers
         else if (
             is_digit(spliced_chars->data[i].value) ||
             (spliced_chars->data[i].value == '.' &&
-                i + 1 < spliced_chars->count &&
-                is_digit(spliced_chars->data[i + 1].value)
+             i + 1 < spliced_chars->count &&
+             is_digit(spliced_chars->data[i + 1].value)
             )
         ) {
             pptoken = tokenize_number(spliced_chars, i);
@@ -484,12 +484,12 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
 
         // header names
         else if (
-            spliced_chars->data[i].value == '<' && 
+            spliced_chars->data[i].value == '<' &&
             check_hash_include(pptokens)
         ) {
             pptoken = tokenize_header_name(spliced_chars, i);
         }
-        
+
         // punctuators and others
         else {
             pptoken = tokenize_punctuator(spliced_chars, i);
