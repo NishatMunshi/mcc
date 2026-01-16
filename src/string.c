@@ -1,5 +1,5 @@
-#include <string.h>
 #include <arena.h>
+#include <string.h>
 
 size_t strlen(char* cstr) {
     size_t len = 0;
@@ -31,20 +31,19 @@ char* strcat(char* cstr1, char* cstr2) {
 }
 
 char* strrchr(char* cstr, char c) {
-    for(s64 i = strlen(cstr) - 1; i >=0; --i) {
-        if(cstr[i] == c) return cstr + i;
+    for (s64 i = strlen(cstr) - 1; i >= 0; --i) {
+        if (cstr[i] == c) return cstr + i;
     }
     return nullptr;
 }
 
 char* strdup(char* cstr) {
-    size_t len= strlen(cstr);
-    char* buf =ARENA_ALLOC(char, len + 1);
+    size_t len = strlen(cstr);
+    char* buf = ARENA_ALLOC(char, len + 1);
     memcpy(buf, cstr, len);
     buf[len] = '\0';
     return buf;
 }
-
 
 void memcpy(void* dest, void* src, size_t num_bytes) {
     u8* d = (u8*)dest;
@@ -54,11 +53,11 @@ void memcpy(void* dest, void* src, size_t num_bytes) {
     }
 }
 
-void *memset(void *ptr, int value, size_t num) {
+void* memset(void* ptr, int value, size_t num) {
     u8* dest = (u8*)ptr;
-    u8 data = (u8) (value & 0xff);
+    u8 data = (u8)(value & 0xff);
 
-    for(size_t i =0 ;i < num; ++i ) {
+    for (size_t i = 0; i < num; ++i) {
         dest[i] = data;
     }
     return ptr;

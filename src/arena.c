@@ -1,5 +1,4 @@
 #include <arena.h>
-
 #include <linux.h>
 #include <panic.h>
 #include <utils.h>

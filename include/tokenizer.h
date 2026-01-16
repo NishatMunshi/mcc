@@ -30,6 +30,5 @@ typedef struct PPTokenVector {
 } PPTokenVector;
 
 PPTokenVector tokenize(SplicedCharVector spliced_chars);
-void pptoken_print(PPToken pptoken);
 
 #endif  // TOKENIZER_H

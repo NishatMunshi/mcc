@@ -1,14 +1,32 @@
-#include <main.h>
-
 #include <arena.h>
 #include <expander.h>
 #include <io.h>
 #include <linux.h>
+#include <main.h>
 #include <normalizer.h>
 #include <panic.h>
 #include <reader.h>
 #include <splicer.h>
 #include <tokenizer.h>
+
+void pptoken_print(PPToken pptoken) {
+    char* ANSI_RESET = "\x1b[0m";
+    char* ANSI_FG_BRIGHT[] = {
+        "\x1b[90m",  // 0: Bright Black (Gray)
+        "\x1b[91m",  // 1: Bright Red
+        "\x1b[92m",  // 2: Bright Green
+        "\x1b[93m",  // 3: Bright Yellow
+        "\x1b[94m",  // 4: Bright Blue
+        "\x1b[95m",  // 5: Bright Magenta
+        "\x1b[96m",  // 6: Bright Cyan
+        "\x1b[97m",  // 7: Bright White
+    };
+    printf("%s", ANSI_FG_BRIGHT[pptoken.kind % 8]);
+    for (size_t i = 0; i < pptoken.length; ++i) {
+        printf("%c", pptoken.splicedchar_start[i].source_char->byte->value);
+    }
+    printf("%s", ANSI_RESET);
+}
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) panic("no input file");
@@ -26,9 +44,6 @@ s32 main(s32 argc, char** argv) {
         pptoken_print(*(expanded_tokens.data[i].pptoken));
     }
 
-    size_t arena_usage = arena_usage_KiB();
-    puts("arena use = ");
-    putu(arena_usage);
-    puts(" KiB\n");
+    printf("arena usage = %zu KiB\n", arena_usage_KiB());
     return LINUX_EXIT_SUCCESS;
 }

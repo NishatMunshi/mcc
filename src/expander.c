@@ -1,9 +1,7 @@
-#include <expander.h>
-
 #include <arena.h>
+#include <expander.h>
 #include <panic.h>
 #include <vector.h>
-#include <io.h>
 
 #define LIBS_DIR "./include/"
 
@@ -28,7 +26,7 @@ static bool is_at_start_of_line(PPTokenVector pptokens, size_t i) {
     while (index >= 0 && pptokens.data[index].kind == PP_WHITESPACE) index--;
 
     // 4. Now check the boundary
-    if (index < 0) return true;                                  // Start of file (Valid)
+    if (index < 0) return true;                                 // Start of file (Valid)
     if (pptokens.data[index].kind != PP_NEWLINE) return false;  // Found junk before hash (Invalid)
 
     return true;
@@ -47,7 +45,7 @@ static char* extract_filename(PPToken pptoken) {
 char* get_directory(char* full_path) {
     char* last_slash = strrchr(full_path, '/');
 
-    if(!last_slash) {
+    if (!last_slash) {
         return strdup("./");
     }
 
@@ -68,7 +66,7 @@ static ExpandedTokenVector handle_include(PPTokenVector pptokens, size_t i) {
         char* filename_to_include = extract_filename(pptokens.data[i]);
         path = strcat(LIBS_DIR, filename_to_include);
     }
-    
+
     else if (pptokens.data[i].kind == PP_STRING) {
         if (pptokens.data[i].splicedchar_start->value != '\"') panic("encoded strings not allowed after \"#include\"");
         char* this_file_dir = get_directory(pptokens.data[i].splicedchar_start->source_char->byte->inclusion->definition->path);

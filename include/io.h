@@ -1,18 +1,22 @@
-#ifndef _STDIO_H
-#define _STDIO_H
+#ifndef IO_H
+#define IO_H
 
-#include "linux.h"
 #include "types.h"
 
-#define stdout LINUX_FD_STDOUT
-#define stderr LINUX_FD_STDERR
+// Don't use directly, use printf macro
+void __printf_impl(
+    s64 rdi,
+    s64 rsi,
+    s64 rdx,
+    s64 rcx,
+    s64 r8,
+    s64 r9,
+    char* format,
+    ...
+);
 
-s64 fputc(s32 stream, char c);
-s64 fputu(s32 stream, u64 num);
-s64 fputs(s32 stream, char* cstr);
+// only understands %c, %s, %zu, %x and %%
+#define printf(format, ...) \
+    __printf_impl(0, 0, 0, 0, 0, 0, (format)__VA_OPT__(, ) __VA_ARGS__)
 
-s64 putc(char c);
-s64 putu(u64 num);
-s64 puts(char* cstr);
-
-#endif  // _STDIO_H
+#endif  // IO_H

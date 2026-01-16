@@ -1,8 +1,6 @@
-#include <tokenizer.h>
-
 #include <arena.h>
-#include <io.h>
 #include <panic.h>
+#include <tokenizer.h>
 #include <vector.h>
 
 static PPToken pptoken_create(PPTokenKind kind, SplicedChar* splicedchar_start, size_t length) {
@@ -190,7 +188,7 @@ static bool check_hash_include(PPTokenVector pptokens) {
     while (i >= 0 && pptokens.data[i].kind == PP_WHITESPACE) i--;
 
     // 4. Now check the boundary
-    if (i < 0) return true;                                  // Start of file (Valid)
+    if (i < 0) return true;                                 // Start of file (Valid)
     if (pptokens.data[i].kind != PP_NEWLINE) return false;  // Found junk before hash (Invalid)
 
     return true;
@@ -500,23 +498,4 @@ PPTokenVector tokenize(SplicedCharVector spliced_chars) {
     }
 
     return pptokens;
-}
-
-void pptoken_print(PPToken pptoken) {
-    char* ANSI_RESET = "\x1b[0m";
-    char* ANSI_FG_BRIGHT[] = {
-        "\x1b[90m",  // 0: Bright Black (Gray)
-        "\x1b[91m",  // 1: Bright Red
-        "\x1b[92m",  // 2: Bright Green
-        "\x1b[93m",  // 3: Bright Yellow
-        "\x1b[94m",  // 4: Bright Blue
-        "\x1b[95m",  // 5: Bright Magenta
-        "\x1b[96m",  // 6: Bright Cyan
-        "\x1b[97m",  // 7: Bright White
-    };
-    puts(ANSI_FG_BRIGHT[pptoken.kind % 8]);
-    for (size_t i = 0; i < pptoken.length; ++i) {
-        putc(pptoken.splicedchar_start[i].source_char->byte->value);
-    }
-    puts(ANSI_RESET);
 }

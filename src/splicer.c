@@ -1,7 +1,6 @@
-#include <splicer.h>
-
 #include <arena.h>
 #include <panic.h>
+#include <splicer.h>
 #include <vector.h>
 
 SplicedCharVector splice(SourceCharVector source_chars) {

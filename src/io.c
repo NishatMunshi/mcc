@@ -1,35 +1,124 @@
+#include <arg.h>
 #include <io.h>
-
+#include <linux.h>
 #include <string.h>
 
-s64 fputc(s32 stream, char c) {
-    return linux_write(stream, &c, 1);
+static void print_char(char c) {
+    linux_write(LINUX_FD_STDOUT, &c, 1);
 }
 
-s64 fputu(s32 stream, u64 num) {
-    u64 pref = num / 10;
+static void print_string(char* cstr) {
+    while (*(cstr) != '\0') {
+        print_char(*cstr);
+        cstr++;
+    }
+}
 
-    s64 num_written = 0;
-    if (pref != 0) {
-        num_written += fputu(stream, pref);
+static void print_u64(u64 num, u64 base) {
+    if (num == 0) {
+        print_char('0');
+        return;
     }
 
-    char c = '0' + (num % 10);
-    return num_written + fputc(stream, c);
+    // 2^64 - 1 has 20 digits, or 16 hexits
+    // 32 is the next power of two after 21
+    char buf[32];
+    char digits[] = "0123456789abcdef";
+
+    // fill the buffer backwards
+    size_t i = 0;
+    while (num != 0) {
+        buf[i] = digits[num % base];
+        num = num / base;
+        i++;
+    }
+
+    // now i = number of digits / hexits
+    while (i > 0) {
+        print_char(buf[i - 1]);
+        i--;
+    }
+
+    return;
 }
 
-s64 fputs(s32 stream, char* cstr) {
-    return linux_write(stream, cstr, strlen(cstr));
-}
+void __printf_impl(
+    s64 rdi,
+    s64 rsi,
+    s64 rdx,
+    s64 rcx,
+    s64 r8,
+    s64 r9,
+    char* format,
+    ...
+) {
+    (void)rdi;
+    (void)rsi;
+    (void)rdx;
+    (void)rcx;
+    (void)r8;
+    (void)r9;
 
-s64 putc(char c) {
-    return fputc(stdout, c);
-}
+    va_list ap;
+    va_start(ap, format);
 
-s64 putu(u64 num) {
-    return fputu(stdout, num);
-}
+    size_t format_length = strlen(format);
+    for (size_t i = 0; i < format_length;) {
+        if (format[i] != '%') {
+            print_char(format[i]);
+            i++;
+            continue;
+        }
 
-s64 puts(char* cstr) {
-    return fputs(stdout, cstr);
+        // now we are sure format[i] == '%'
+        // one byte lookahead is always safe
+        // because of null termination
+
+        // character
+        if (format[i + 1] == 'c') {
+            print_char(va_arg(ap, char));
+            i += 2;
+            continue;
+        }
+
+        // string
+        if (format[i + 1] == 's') {
+            print_string(va_arg(ap, char*));
+            i += 2;
+            continue;
+        }
+
+        // 64 bit pointer
+        if (format[i + 1] == 'x') {
+            print_string("0x");
+            print_u64(va_arg(ap, u64), 16);
+            i += 2;
+            continue;
+        }
+
+        // the literal '%' symbol
+        if (format[i + 1] == '%') {
+            print_char('%');
+            i += 2;
+            continue;
+        }
+
+        // 64 bit decimal unsigned integer
+        if (
+            format[i + 1] == 'z' &&
+            i + 1 < strlen(format) &&
+            format[i + 2] == 'u'
+        ) {
+            print_u64(va_arg(ap, u64), 10);
+            i += 3;
+            continue;
+        }
+
+        // if we fall here, we don't recognise the format specifier
+        print_char(format[i]);
+        i++;
+        continue;
+    }
+
+    va_end(ap);
 }

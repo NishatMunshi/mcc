@@ -44,34 +44,34 @@
 //    vector_append(tokens_vec, new_tokens_vec);
 // -----------------------------------------------------------------------------
 
-#define vector_append(dest, src)                                                                       \
-    do {                                                                                               \
-        /* 1. Calculate Required Size */                                                               \
-        size_t _req_count = (dest)->count + (src).count;                                              \
-                                                                                                       \
-        /* 2. Check Capacity */                                                                        \
-        if (_req_count > (dest)->capacity) {                                                           \
-            size_t _new_cap = (dest)->capacity == 0 ? 16 : (dest)->capacity;                           \
-            while (_new_cap < _req_count) _new_cap *= 2;                                               \
-                                                                                                       \
-            /* 3. Allocate New Block */                                                                \
-            typeof((dest)->data) _new_data = ARENA_ALLOC(typeof(*((dest)->data)), _new_cap);           \
-                                                                                                       \
-            /* 4. Copy Old Data (if any) */                                                            \
-            if ((dest)->count > 0) {                                                                   \
-                memcpy(_new_data, (dest)->data, (dest)->count * sizeof(*((dest)->data)));              \
-            }                                                                                          \
-                                                                                                       \
-            /* 5. Update Vector */                                                                     \
-            (dest)->data = _new_data;                                                                  \
-            (dest)->capacity = _new_cap;                                                               \
-        }                                                                                              \
-                                                                                                       \
-        /* 6. Append New Data */                                                                       \
-        if ((src).count > 0) {                                                                        \
+#define vector_append(dest, src)                                                                     \
+    do {                                                                                             \
+        /* 1. Calculate Required Size */                                                             \
+        size_t _req_count = (dest)->count + (src).count;                                             \
+                                                                                                     \
+        /* 2. Check Capacity */                                                                      \
+        if (_req_count > (dest)->capacity) {                                                         \
+            size_t _new_cap = (dest)->capacity == 0 ? 16 : (dest)->capacity;                         \
+            while (_new_cap < _req_count) _new_cap *= 2;                                             \
+                                                                                                     \
+            /* 3. Allocate New Block */                                                              \
+            typeof((dest)->data) _new_data = ARENA_ALLOC(typeof(*((dest)->data)), _new_cap);         \
+                                                                                                     \
+            /* 4. Copy Old Data (if any) */                                                          \
+            if ((dest)->count > 0) {                                                                 \
+                memcpy(_new_data, (dest)->data, (dest)->count * sizeof(*((dest)->data)));            \
+            }                                                                                        \
+                                                                                                     \
+            /* 5. Update Vector */                                                                   \
+            (dest)->data = _new_data;                                                                \
+            (dest)->capacity = _new_cap;                                                             \
+        }                                                                                            \
+                                                                                                     \
+        /* 6. Append New Data */                                                                     \
+        if ((src).count > 0) {                                                                       \
             memcpy((dest)->data + (dest)->count, (src).data, (src).count * sizeof(*((dest)->data))); \
-            (dest)->count = _req_count;                                                                \
-        }                                                                                              \
+            (dest)->count = _req_count;                                                              \
+        }                                                                                            \
     } while (0)
 
 #endif

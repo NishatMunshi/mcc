@@ -1,6 +1,5 @@
-#include <normalizer.h>
-
 #include <arena.h>
+#include <normalizer.h>
 #include <panic.h>
 #include <vector.h>
 
