@@ -4,8 +4,15 @@
 #include <vector.h>
 
 static PPToken pptoken_create(PPTokenKind kind, SplicedChar* splicedchar_start, size_t length) {
+    char* spelling = ARENA_ALLOC(char, length + 1);
+    for(size_t i = 0; i < length; ++i) {
+        spelling[i] = splicedchar_start[i].value;
+    }
+    spelling[length] = '\0';
+
     PPToken pptoken = {
         .kind = kind,
+        .spelling = spelling,
         .splicedchar_start = splicedchar_start,
         .length = length,
     };
@@ -156,19 +163,13 @@ static PPToken tokenize_number(SplicedCharVector spliced_chars, size_t i) {
 }
 
 static bool is_include(PPToken pptoken) {
-    char* compare = "include";
     if (pptoken.kind != PP_IDENTIFIER) return false;
-    if (pptoken.length != sizeof(compare) - 1) return false;
-    for (size_t i = 0; i < pptoken.length; ++i) {
-        if (pptoken.splicedchar_start[i].value != compare[i]) return false;
-    }
-    return true;
+    return streq(pptoken.spelling, "include");
 }
 
 static bool is_hash(PPToken pptoken) {
     if (pptoken.kind != PP_PUNCTUATOR) return false;
-    if (pptoken.length != 1) return false;
-    return pptoken.splicedchar_start->value == '#';
+    return streq(pptoken.spelling, "#");
 }
 
 static bool check_hash_include(PPTokenVector pptokens) {

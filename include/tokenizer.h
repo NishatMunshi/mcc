@@ -17,6 +17,7 @@ typedef enum PPTokenKind {
 
 typedef struct PPToken {
     PPTokenKind kind;
+    char* spelling;
 
     SplicedChar* splicedchar_start;
     size_t length;
