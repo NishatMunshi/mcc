@@ -6,20 +6,23 @@
 #include <vector.h>
 
 typedef struct FileDefinitionMap {
-    FileDefinition** data;
+    FileDefinition* data;
     size_t count;
     size_t capacity;
 } FileDefinitionMap;
 
-static FileDefinitionMap g_file_definitions = {
-    .data = nullptr,
-    .count = 0,
-    .capacity = 0,
-};
+typedef struct FileInclusionVector {
+    FileInclusion* data;
+    size_t count;
+    size_t capacity;
+} FileInclusionVector;
+
+static FileDefinitionMap g_file_definitions = {0};
+static FileInclusionVector g_file_inclusions = {0};
 
 static FileDefinition* is_open(char* path) {
     for (size_t i = 0; i < g_file_definitions.count; ++i) {
-        FileDefinition* definition = g_file_definitions.data[i];
+        FileDefinition* definition = g_file_definitions.data + i;
         if (streq(definition->path, path)) {
             return definition;
         }
@@ -29,9 +32,11 @@ static FileDefinition* is_open(char* path) {
 
 static FileDefinition* get_definition(char* path) {
     FileDefinition* definition = is_open(path);
-    if (!definition) {
-        definition = ARENA_ALLOC(FileDefinition, 1);
+    if(definition != nullptr) {
+        return definition;
+    }
 
+    else {
         s32 fd = linux_open(path, LINUX_FILE_FLAG_READONLY, 0);
         if (fd < 0) panic("failed to open file");
 
@@ -45,28 +50,32 @@ static FileDefinition* get_definition(char* path) {
 
         buf[size] = '\0';
 
-        definition->path = path;
-        definition->content = buf;
-        definition->size = size;
+        FileDefinition new_definition = {
+            .path = path,
+            .content = buf,
+            .size = size,
+        };
 
-        vector_push(&g_file_definitions, definition);
+        vector_push(&g_file_definitions, new_definition);
+        return vector_back(g_file_definitions);
     }
-
-    return definition;
 }
 
 ByteVector read(char* path, PPToken* pptok) {
     FileDefinition* definition = get_definition(path);
 
-    FileInclusion* inclusion = ARENA_ALLOC(FileInclusion, 1);
-    inclusion->definition = definition;
-    inclusion->pptok = pptok;
+    FileInclusion inclusion = {
+        .definition = definition,
+        .pptok = pptok,
+    };
+
+    vector_push(&g_file_inclusions, inclusion);
 
     ByteVector bytes = {0};
     for (size_t i = 0; i < definition->size; ++i) {
         Byte byte = {
             .value = definition->content[i],
-            .inclusion = inclusion,
+            .inclusion = vector_back(g_file_inclusions),
             .offset = i,
         };
 
