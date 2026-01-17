@@ -74,7 +74,6 @@
         }                                                                                            \
     } while (0)
 
-
 // Retruns pointer to the last object pushed into the vector
 #define vector_back(vec) ((vec).data + (vec).count - 1)
 

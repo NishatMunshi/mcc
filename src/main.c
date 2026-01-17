@@ -3,13 +3,9 @@
 #include <io.h>
 #include <linux.h>
 #include <main.h>
-#include <normalizer.h>
 #include <panic.h>
-#include <reader.h>
-#include <splicer.h>
-#include <tokenizer.h>
 
-void pptoken_print(PPToken pptoken) {
+void expanded_token_print(ExpandedToken expanded_token) {
     char* ANSI_RESET = "\x1b[0m";
     char* ANSI_FG_BRIGHT[] = {
         "\x1b[90m",  // 0: Bright Black (Gray)
@@ -21,10 +17,11 @@ void pptoken_print(PPToken pptoken) {
         "\x1b[96m",  // 6: Bright Cyan
         "\x1b[97m",  // 7: Bright White
     };
-    printf("%s", ANSI_FG_BRIGHT[pptoken.kind % 8]);
-    for (size_t i = 0; i < pptoken.length; ++i) {
-        printf("%c", pptoken.splicedchar_start[i].source_char->byte->value);
-    }
+
+    if(expanded_token.invocation)
+    printf("%s", ANSI_FG_BRIGHT[expanded_token.kind % 8]);
+    printf("%s", expanded_token.spelling);
+    if(expanded_token.invocation)
     printf("%s", ANSI_RESET);
 }
 
@@ -41,7 +38,7 @@ s32 main(s32 argc, char** argv) {
 
     for (size_t i = 0; i < expanded_tokens.count; ++i) {
         // colors the tokens according to type
-        pptoken_print(*(expanded_tokens.data[i].pptoken));
+        expanded_token_print(expanded_tokens.data[i]);
     }
 
     printf("arena usage = %zu KiB\n", arena_usage_KiB());

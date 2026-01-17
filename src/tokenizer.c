@@ -10,7 +10,7 @@ bool pptoken_is(PPToken pptoken, PPTokenKind kind, char* spelling) {
 
 static PPToken pptoken_create(PPTokenKind kind, SplicedChar* splicedchar_start, size_t length) {
     char* spelling = ARENA_ALLOC(char, length + 1);
-    for(size_t i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) {
         spelling[i] = splicedchar_start[i].value;
     }
     spelling[length] = '\0';

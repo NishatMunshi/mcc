@@ -9,6 +9,7 @@ typedef long long s64;
 typedef int s32;
 
 typedef u64 size_t;
+typedef s64 ssize_t;
 
 typedef union {
     long long ll;

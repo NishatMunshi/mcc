@@ -4,6 +4,7 @@
 #include <reader.h>
 #include <string.h>
 #include <vector.h>
+#include <io.h>
 
 typedef struct FileDefinitionMap {
     FileDefinition* data;
@@ -32,7 +33,7 @@ static FileDefinition* is_open(char* full_path) {
 
 static FileDefinition* get_definition(char* full_path) {
     FileDefinition* definition = is_open(full_path);
-    if(definition != nullptr) {
+    if (definition != nullptr) {
         return definition;
     }
 
