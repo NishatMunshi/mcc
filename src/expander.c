@@ -5,19 +5,6 @@
 
 #define LIBS_DIR "./include/"
 
-static bool pptoken_is(PPToken pptoken, PPTokenKind kind, char* spelling) {
-    if (pptoken.kind != kind) return false;
-
-    size_t spelling_len = strlen(spelling);
-    if (pptoken.length != spelling_len) return false;
-
-    for (size_t i = 0; i < spelling_len; ++i) {
-        if (pptoken.splicedchar_start[i].value != spelling[i]) return false;
-    }
-
-    return true;
-}
-
 static bool is_at_start_of_line(PPTokenVector pptokens, size_t i) {
     s64 index = i;
 
@@ -32,7 +19,7 @@ static bool is_at_start_of_line(PPTokenVector pptokens, size_t i) {
     return true;
 }
 
-static char* extract_filename(PPToken pptoken) {
+static char* extract_relative_path(PPToken pptoken) {
     char* buf = ARENA_ALLOC(char, pptoken.length - 1);
 
     for (size_t i = 1; i < pptoken.length - 1; ++i) {
@@ -61,24 +48,24 @@ static ExpandedTokenVector handle_include(PPTokenVector pptokens, size_t i) {
     i++;  // skip the "include"
     while (pptokens.data[i].kind == PP_WHITESPACE) i++;
 
-    char* path = nullptr;
+    char* full_path = nullptr;
     if (pptokens.data[i].kind == PP_HEADERNAME) {
-        char* filename_to_include = extract_filename(pptokens.data[i]);
-        path = strcat(LIBS_DIR, filename_to_include);
+        char* relative_path = extract_relative_path(pptokens.data[i]);
+        full_path = strcat(LIBS_DIR, relative_path);
     }
 
     else if (pptokens.data[i].kind == PP_STRING) {
         if (pptokens.data[i].splicedchar_start->value != '\"') panic("encoded strings not allowed after \"#include\"");
-        char* this_file_dir = get_directory(pptokens.data[i].splicedchar_start->source_char->byte->inclusion->definition->path);
-        char* filename_to_include = extract_filename(pptokens.data[i]);
-        path = strcat(this_file_dir, filename_to_include);
+        char* this_file_dir = get_directory(pptokens.data[i].splicedchar_start->source_char->byte->inclusion->definition->full_path);
+        char* relative_path = extract_relative_path(pptokens.data[i]);
+        full_path = strcat(this_file_dir, relative_path);
     }
 
     else {
-        panic("expected file path after \"#include\"");
+        panic("expected file full_path after \"#include\"");
     }
 
-    ByteVector bytes = read(path, pptokens.data + i);
+    ByteVector bytes = read(full_path, pptokens.data + i);
     SourceCharVector source_chars = normalize(bytes);
     SplicedCharVector spliced_chars = splice(source_chars);
     PPTokenVector pptokens_new = tokenize(spliced_chars);
@@ -114,6 +101,10 @@ ExpandedTokenVector expand(PPTokenVector pptokens) {
 
         else {
             ExpandedToken expanded_token = {
+                .kind = pptokens.data[i].kind,
+                .spelling = strdup(pptokens.data[i].spelling),
+                .length = pptokens.data[i].length,
+
                 .pptoken = pptokens.data + i,
             };
 

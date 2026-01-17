@@ -18,9 +18,9 @@ typedef enum PPTokenKind {
 typedef struct PPToken {
     PPTokenKind kind;
     char* spelling;
+    size_t length;
 
     SplicedChar* splicedchar_start;
-    size_t length;
 } PPToken;
 
 typedef struct PPTokenVector {
@@ -31,5 +31,6 @@ typedef struct PPTokenVector {
 } PPTokenVector;
 
 PPTokenVector tokenize(SplicedCharVector spliced_chars);
+bool pptoken_is(PPToken pptoken, PPTokenKind kind, char* spelling);
 
 #endif  // TOKENIZER_H

@@ -20,24 +20,24 @@ typedef struct FileInclusionVector {
 static FileDefinitionMap g_file_definitions = {0};
 static FileInclusionVector g_file_inclusions = {0};
 
-static FileDefinition* is_open(char* path) {
+static FileDefinition* is_open(char* full_path) {
     for (size_t i = 0; i < g_file_definitions.count; ++i) {
         FileDefinition* definition = g_file_definitions.data + i;
-        if (streq(definition->path, path)) {
+        if (streq(definition->full_path, full_path)) {
             return definition;
         }
     }
     return nullptr;
 }
 
-static FileDefinition* get_definition(char* path) {
-    FileDefinition* definition = is_open(path);
+static FileDefinition* get_definition(char* full_path) {
+    FileDefinition* definition = is_open(full_path);
     if(definition != nullptr) {
         return definition;
     }
 
     else {
-        s32 fd = linux_open(path, LINUX_FILE_FLAG_READONLY, 0);
+        s32 fd = linux_open(full_path, LINUX_FILE_FLAG_READONLY, 0);
         if (fd < 0) panic("failed to open file");
 
         linux_stat_t stat;
@@ -51,7 +51,7 @@ static FileDefinition* get_definition(char* path) {
         buf[size] = '\0';
 
         FileDefinition new_definition = {
-            .path = path,
+            .full_path = full_path,
             .content = buf,
             .size = size,
         };
@@ -61,8 +61,8 @@ static FileDefinition* get_definition(char* path) {
     }
 }
 
-ByteVector read(char* path, PPToken* pptok) {
-    FileDefinition* definition = get_definition(path);
+ByteVector read(char* full_path, PPToken* pptok) {
+    FileDefinition* definition = get_definition(full_path);
 
     FileInclusion inclusion = {
         .definition = definition,

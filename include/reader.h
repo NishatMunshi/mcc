@@ -9,7 +9,7 @@ typedef struct PPToken PPToken;
 // copy of physical file on disk, loaded once
 // and pointed to by every include of this file
 typedef struct FileDefinition {
-    char* path;
+    char* full_path;
 
     u8* content;
     size_t size;
@@ -38,6 +38,6 @@ typedef struct ByteVector {
     size_t capacity;
 } ByteVector;
 
-ByteVector read(char* path, PPToken* pptok);
+ByteVector read(char* full_path, PPToken* pptok);
 
 #endif  // READER_H

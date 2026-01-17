@@ -3,6 +3,11 @@
 #include <tokenizer.h>
 #include <vector.h>
 
+bool pptoken_is(PPToken pptoken, PPTokenKind kind, char* spelling) {
+    if (pptoken.kind != kind) return false;
+    return streq(pptoken.spelling, spelling);
+}
+
 static PPToken pptoken_create(PPTokenKind kind, SplicedChar* splicedchar_start, size_t length) {
     char* spelling = ARENA_ALLOC(char, length + 1);
     for(size_t i = 0; i < length; ++i) {
@@ -162,27 +167,17 @@ static PPToken tokenize_number(SplicedCharVector spliced_chars, size_t i) {
     return pptoken;
 }
 
-static bool is_include(PPToken pptoken) {
-    if (pptoken.kind != PP_IDENTIFIER) return false;
-    return streq(pptoken.spelling, "include");
-}
-
-static bool is_hash(PPToken pptoken) {
-    if (pptoken.kind != PP_PUNCTUATOR) return false;
-    return streq(pptoken.spelling, "#");
-}
-
 static bool check_hash_include(PPTokenVector pptokens) {
     s64 i = pptokens.count - 1;
 
     // 1. Skip WS backwards to find "include"
     while (i >= 0 && pptokens.data[i].kind == PP_WHITESPACE) i--;
-    if (i >= 0 && !is_include(pptokens.data[i])) return false;
+    if (i >= 0 && !pptoken_is(pptokens.data[i], PP_IDENTIFIER, "include")) return false;
 
     // 2. Skip WS backwards to find "#"
     i--;
     while (i >= 0 && pptokens.data[i].kind == PP_WHITESPACE) i--;
-    if (i >= 0 && !is_hash(pptokens.data[i])) return false;
+    if (i >= 0 && !pptoken_is(pptokens.data[i], PP_PUNCTUATOR, "#")) return false;
 
     // 3. We want to verify there is nothing BUT whitespace before the hash.
     i--;
