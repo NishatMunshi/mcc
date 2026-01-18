@@ -17,7 +17,7 @@
     do {                                                                                   \
         /* 1. Check Capacity */                                                            \
         if ((vec)->count >= (vec)->capacity) {                                             \
-            size_t _new_cap = (vec)->capacity == 0 ? 16 : (vec)->capacity * 2;             \
+            size_t _new_cap = (vec)->capacity == 0 ? 4 : (vec)->capacity * 2;              \
                                                                                            \
             /* 2. Allocate New Block (using the type of the existing data) */              \
             /* typeof(*((vec)->data)) gives us the struct type (e.g., Byte) */             \
@@ -73,8 +73,5 @@
             (dest)->count = _req_count;                                                              \
         }                                                                                            \
     } while (0)
-
-// Retruns pointer to the last object pushed into the vector
-#define vector_back(vec) ((vec).data + (vec).count - 1)
 
 #endif

@@ -3,29 +3,43 @@
 #include <splicer.h>
 #include <vector.h>
 
-SplicedCharVector splice(SourceCharVector source_chars) {
-    SplicedCharVector spliced_chars = {0};
+SplicedCharVector* splice(SourceCharVector* source_chars) {
+    // check newline at end of file
+    if (source_chars->count >= 1 &&
+        source_chars->data[source_chars->count - 1]->value != '\n') {
+        panic("no newline at end of file");
+    }
 
-    for (size_t i = 0; i < source_chars.count;) {
-        char left = source_chars.data[i].value;
+    /*
+    Now we know last character IS newline.
+    Check backslash just before said newline.
+    */
+    if (source_chars->count >= 2 &&
+        source_chars->data[source_chars->count - 2]->value == '\\') {
+        panic("backslash before last newline");
+    }
 
-        if (i + 1 == source_chars.count && left != '\n') panic("no newline at end of file");
+    SplicedCharVector* spliced_chars = ARENA_ALLOC(SplicedCharVector, 1);
 
-        if (left == '\\' && i + 2 == source_chars.count && source_chars.data[i + 1].value == '\n') panic("backslash before last newline");
-
-        if (left == '\\' && i + 1 < source_chars.count && source_chars.data[i + 1].value == '\n') {
+    for (size_t i = 0; i < source_chars->count;) {
+        /*
+        We don't need the bounds check for lookahead
+        because the '\\' is not the last character,
+        guaranteed by the checks above.
+        */
+        if (source_chars->data[i]->value == '\\' &&
+            source_chars->data[i + 1]->value == '\n') {
             i += 2;
             continue;
         }
 
-        SplicedChar spliced_char = {
-            .source_char = source_chars.data + i,
-            .value = left,
-        };
+        SplicedChar* spliced_char = ARENA_ALLOC(SplicedChar, 1);
+        spliced_char->value = source_chars->data[i]->value;
+        spliced_char->source_char = source_chars->data[i];
 
-        i++;
+        vector_push(spliced_chars, spliced_char);
 
-        vector_push(&spliced_chars, spliced_char);
+        i += 1;
     }
 
     return spliced_chars;

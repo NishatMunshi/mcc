@@ -1,8 +1,8 @@
 #include <arena.h>
 #include <expander.h>
+#include <io.h>
 #include <panic.h>
 #include <vector.h>
-#include <io.h>
 
 #define LIBS_DIR "./include/"
 #define MAX_INCLUDE_DEPTH 15
@@ -90,10 +90,10 @@ static ExpandedTokenVector handle_include(PPTokenVector pptokens, size_t i) {
     }
 
     include_depth++;
-    ByteVector bytes = read(full_path, pptokens.data + i);
-    SourceCharVector source_chars = normalize(bytes);
-    SplicedCharVector spliced_chars = splice(source_chars);
-    PPTokenVector pptokens_new = tokenize(spliced_chars);
+    ByteVector* bytes = read(full_path, pptokens.data + i);
+    SourceCharVector* source_chars = normalize(bytes);
+    SplicedCharVector* spliced_chars = splice(source_chars);
+    PPTokenVector pptokens_new = tokenize(*spliced_chars);
     ExpandedTokenVector expanded_tokens_new = expand(pptokens_new);
     include_depth--;
 
@@ -243,16 +243,16 @@ static void handle_define(PPTokenVector pptokens, size_t i) {
 
 static ExpandedToken passthrough(PPToken* pptoken) {
     ExpandedToken expanded_token = {
-                .kind = pptoken->kind,
-                .spelling = strdup(pptoken->spelling),
-                .length = pptoken->length,
+        .kind = pptoken->kind,
+        .spelling = strdup(pptoken->spelling),
+        .length = pptoken->length,
 
-                .pptoken = pptoken,
+        .pptoken = pptoken,
 
-                // this is normal code, not a macro invocation
-                .invocation = nullptr,
-            };
-    
+        // this is normal code, not a macro invocation
+        .invocation = nullptr,
+    };
+
     return expanded_token;
 }
 
@@ -267,7 +267,7 @@ static ssize_t get_param_index(MacroDefinition* def, char* name) {
 static ExpandedTokenVector expand_object_like_macro(MacroDefinition* definition, PPToken* source_token) {
     MacroInvocation* invoc = ARENA_ALLOC(MacroInvocation, 1);
     invoc->definition = definition;
-    invoc->pptoken = source_token; // The token that triggered this
+    invoc->pptoken = source_token;  // The token that triggered this
     invoc->args = (PPTokenVectorVector){0};
 
     definition->is_expanding = true;
@@ -276,7 +276,7 @@ static ExpandedTokenVector expand_object_like_macro(MacroDefinition* definition,
     ExpandedTokenVector final = expand(definition->replacement_list);
 
     // ... fix traceability pointers ...
-    for(size_t k=0; k<final.count; k++) {
+    for (size_t k = 0; k < final.count; k++) {
         if (!final.data[k].invocation) final.data[k].invocation = invoc;
     }
 
@@ -285,7 +285,7 @@ static ExpandedTokenVector expand_object_like_macro(MacroDefinition* definition,
 }
 
 static size_t skip_whitespace_and_newlines(PPTokenVector pptokens, size_t i) {
-    while(pptokens.data[i].kind == PP_WHITESPACE || pptokens.data[i].kind == PP_NEWLINE) i++;
+    while (pptokens.data[i].kind == PP_WHITESPACE || pptokens.data[i].kind == PP_NEWLINE) i++;
     return i;
 }
 
@@ -294,7 +294,7 @@ PPTokenVectorVector parse_macro_invocation_args(PPTokenVector pptokens, size_t* 
     size_t i = *index;
 
     // 1. Move past the Macro Name
-    i++; 
+    i++;
 
     // 2. Find the opening '('
     // Arguments can start on the next line: #define A(x) ... \n A \n (10)
@@ -304,7 +304,7 @@ PPTokenVectorVector parse_macro_invocation_args(PPTokenVector pptokens, size_t* 
     if (i >= pptokens.count || !pptoken_is(pptokens.data[i], PP_PUNCTUATOR, "(")) {
         panic("Expected '(' after function-like macro invocation");
     }
-    
+
     // Eat the '('
     i++;
 
@@ -314,9 +314,9 @@ PPTokenVectorVector parse_macro_invocation_args(PPTokenVector pptokens, size_t* 
 
     // Handle edge case: FOO() -> 1 argument (empty) OR 0 arguments?
     // We check for immediate ')' before entering the main token accumulation.
-    // However, the cleanest way is to enter the loop. If we hit ')' immediately, 
+    // However, the cleanest way is to enter the loop. If we hit ')' immediately,
     // we push one empty vector. The expander logic handles "0 vs 1" param checks.
-    
+
     while (i < pptokens.count) {
         PPToken pptoken = pptokens.data[i];
 
@@ -332,12 +332,12 @@ PPTokenVectorVector parse_macro_invocation_args(PPTokenVector pptokens, size_t* 
         if (pptoken_is(pptoken, PP_PUNCTUATOR, ")")) {
             if (paren_depth == 0) {
                 // End of Invocation!
-                
+
                 // Push the final argument collected so far.
                 // Note: For "FOO()", current_arg is empty, which is correct.
                 vector_push(&args, current_arg);
-                
-                i++; // Eat the closing ')'
+
+                i++;  // Eat the closing ')'
                 break;
             } else {
                 // Just closing a nested group
@@ -356,21 +356,21 @@ PPTokenVectorVector parse_macro_invocation_args(PPTokenVector pptokens, size_t* 
 
                 // Reset for the next argument
                 // We zero it out so the next vector_push starts a fresh buffer
-                memset(&current_arg, 0, sizeof(current_arg)); 
-                
-                i++; // Eat the comma
+                memset(&current_arg, 0, sizeof(current_arg));
+
+                i++;  // Eat the comma
                 continue;
             }
             // Else: Comma inside nested parens (e.g. function call in arg), just treat as text.
         }
 
         // Case D: Newlines
-        // C Standard 6.10.3.11: "New-line characters in the arguments are each 
+        // C Standard 6.10.3.11: "New-line characters in the arguments are each
         // replaced by a space character."
         if (pptoken.kind == PP_NEWLINE) {
-            PPToken space_token = pptoken; 
+            PPToken space_token = pptoken;
             space_token.kind = PP_WHITESPACE;
-            space_token.spelling = " "; 
+            space_token.spelling = " ";
             space_token.length = 1;
             vector_push(&current_arg, space_token);
             i++;
@@ -395,24 +395,24 @@ static ExpandedTokenVector expand_function_like_macro(MacroDefinition* definitio
     // 1. Create Invocation Object (For traceability)
     MacroInvocation* invoc = ARENA_ALLOC(MacroInvocation, 1);
     invoc->definition = definition;
-    invoc->pptoken = &pptokens.data[*i]; // Points to the name before we move i
-    
+    invoc->pptoken = &pptokens.data[*i];  // Points to the name before we move i
+
     // 2. Parse Arguments
     // parse_args must handle the '(' and ')' and commas
     PPTokenVectorVector args = parse_macro_invocation_args(pptokens, i);
-    invoc->args = args; 
+    invoc->args = args;
 
     // Error checks...
-    if(args.count < definition->params.count) panic("Too few args");
-    if(!definition->is_variadic && args.count > definition->params.count) panic("Too many args");
+    if (args.count < definition->params.count) panic("Too few args");
+    if (!definition->is_variadic && args.count > definition->params.count) panic("Too many args");
 
     // 3. Lock
     definition->is_expanding = true;
 
     // 4. Substitution (The "Paste")
     PPTokenVector pasted_tokens = {0};
-    
-    for(size_t j = 0; j < definition->replacement_list.count; ++j) {
+
+    for (size_t j = 0; j < definition->replacement_list.count; ++j) {
         PPToken pptoken = definition->replacement_list.data[j];
 
         if (pptoken.kind == PP_IDENTIFIER) {
@@ -421,24 +421,24 @@ static ExpandedTokenVector expand_function_like_macro(MacroDefinition* definitio
 
             if (param_idx != -1) {
                 // It IS a parameter!
-                
+
                 // TODO: Handle Variadic __VA_ARGS__ mapping here if index is high
 
                 // Paste the argument tokens instead of the parameter name
                 PPTokenVector arg_tokens = args.data[param_idx];
-                
+
                 // C Standard: Argument Prescan
                 // We should technically expand the argument HERE before pasting,
-                // UNLESS the next/prev token is '#' or '##'. 
+                // UNLESS the next/prev token is '#' or '##'.
                 // For simplicity now, let's paste RAW and let the recursive expand catch it.
                 // (This is "Lazy Expansion" - slightly non-standard but simpler for step 1)
-                for(size_t k = 0; k < arg_tokens.count; k++) {
+                for (size_t k = 0; k < arg_tokens.count; k++) {
                     vector_push(&pasted_tokens, arg_tokens.data[k]);
                 }
                 continue;
             }
         }
-        
+
         // Not a parameter? Just copy the body token.
         vector_push(&pasted_tokens, pptoken);
     }
@@ -449,7 +449,7 @@ static ExpandedTokenVector expand_function_like_macro(MacroDefinition* definitio
     // 6. Fix Traceability
     // The tokens in 'final_expanded' think they came from 'pasted_tokens'.
     // We tell them: "You are part of this Macro Invocation"
-    for(size_t k = 0; k < final_expanded.count; k++) {
+    for (size_t k = 0; k < final_expanded.count; k++) {
         if (final_expanded.data[k].invocation == nullptr) {
             final_expanded.data[k].invocation = invoc;
         }
@@ -504,7 +504,7 @@ ExpandedTokenVector expand(PPTokenVector pptokens) {
             }
 
             if (definition->is_expanding) {
-                vector_push(&expanded_tokens,  passthrough(pptokens.data + i));
+                vector_push(&expanded_tokens, passthrough(pptokens.data + i));
                 i++;
                 continue;
             }
@@ -512,7 +512,7 @@ ExpandedTokenVector expand(PPTokenVector pptokens) {
             if (!definition->is_function_like) {
                 ExpandedTokenVector replacement = expand_object_like_macro(definition, pptokens.data + i);
                 vector_append(&expanded_tokens, replacement);
-                i++; // eat the name
+                i++;  // eat the name
                 continue;
             }
 
@@ -525,7 +525,7 @@ ExpandedTokenVector expand(PPTokenVector pptokens) {
                 i = snapshot_i;
 
                 // push the name
-                vector_push(&expanded_tokens,  passthrough(pptokens.data + i));
+                vector_push(&expanded_tokens, passthrough(pptokens.data + i));
                 i++;
                 continue;
             }

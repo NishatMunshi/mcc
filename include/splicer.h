@@ -4,18 +4,18 @@
 #include "normalizer.h"
 
 typedef struct SplicedChar {
-    u8 value;
+    u32 value;
 
     SourceChar* source_char;
 } SplicedChar;
 
 typedef struct SplicedCharVector {
-    SplicedChar* data;
+    SplicedChar** data;
 
     size_t count;
     size_t capacity;
 } SplicedCharVector;
 
-SplicedCharVector splice(SourceCharVector source_chars);
+SplicedCharVector* splice(SourceCharVector* source_chars);
 
 #endif  // SPLICER_H

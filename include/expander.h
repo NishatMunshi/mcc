@@ -7,10 +7,10 @@ typedef struct MacroDefinition {
     char* name;
 
     bool is_function_like;
-    PPTokenVector params;
+    PPTokenVector* params;
     bool is_variadic;
 
-    PPTokenVector replacement_list;
+    PPTokenVector* replacement_list;
 
     // flag to stop recursive macro expansion
     // standard in C23
@@ -21,7 +21,7 @@ typedef struct MacroDefinition {
 } MacroDefinition;
 
 typedef struct PPTokenVectorVector {
-    PPTokenVector* data;
+    PPTokenVector** data;
 
     size_t count;
     size_t capacity;
@@ -29,9 +29,9 @@ typedef struct PPTokenVectorVector {
 
 typedef struct MacroInvocation {
     MacroDefinition* definition;
-    PPTokenVectorVector args;
-
-    PPToken* pptoken;
+    
+    PPToken* origin;
+    PPTokenVectorVector* args;
 } MacroInvocation;
 
 typedef struct ExpandedToken {
@@ -43,7 +43,7 @@ typedef struct ExpandedToken {
     // - For normal code: Points to the token in the source file.
     // - For macro body: Points to the token INSIDE the #define definition.
     // - For macro args: Points to the token in the argument list.
-    PPToken* pptoken;
+    PPToken* origin;
 
     // 2. The Logical Source (Expansion History)
     // If this token appeared because of a macro, this points to that call.
@@ -52,12 +52,12 @@ typedef struct ExpandedToken {
 } ExpandedToken;
 
 typedef struct ExpandedTokenVector {
-    ExpandedToken* data;
+    ExpandedToken** data;
 
     size_t count;
     size_t capacity;
 } ExpandedTokenVector;
 
-ExpandedTokenVector expand(PPTokenVector pp_tokens);
+ExpandedTokenVector* expand(PPTokenVector* pp_tokens);
 
 #endif  // EXPANDER_H

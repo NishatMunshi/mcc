@@ -19,25 +19,24 @@ typedef struct FileDefinition {
 typedef struct FileInclusion {
     FileDefinition* definition;
 
-    PPToken* pptok;
+    PPToken* inclusion_trigger;
 } FileInclusion;
 
 // smart byte, points to its FileInclusion instance
 typedef struct Byte {
     u8 value;
 
-    FileInclusion* inclusion;
+    FileInclusion* origin;
     size_t offset;
 } Byte;
 
-// containter, not pointers, but objects
 typedef struct ByteVector {
-    Byte* data;
+    Byte** data;
 
     size_t count;
     size_t capacity;
 } ByteVector;
 
-ByteVector read(char* full_path, PPToken* pptok);
+ByteVector* read(char* full_path, PPToken* inclusion_trigger);
 
 #endif  // READER_H

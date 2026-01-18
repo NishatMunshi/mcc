@@ -1,38 +1,33 @@
 #include <arena.h>
+#include <io.h>
 #include <linux.h>
 #include <panic.h>
 #include <reader.h>
 #include <string.h>
 #include <vector.h>
-#include <io.h>
 
 typedef struct FileDefinitionMap {
-    FileDefinition* data;
+    FileDefinition** data;
     size_t count;
     size_t capacity;
 } FileDefinitionMap;
 
-typedef struct FileInclusionVector {
-    FileInclusion* data;
-    size_t count;
-    size_t capacity;
-} FileInclusionVector;
-
 static FileDefinitionMap g_file_definitions = {0};
-static FileInclusionVector g_file_inclusions = {0};
 
 static FileDefinition* is_open(char* full_path) {
     for (size_t i = 0; i < g_file_definitions.count; ++i) {
-        FileDefinition* definition = g_file_definitions.data + i;
+        FileDefinition* definition = g_file_definitions.data[i];
         if (streq(definition->full_path, full_path)) {
             return definition;
         }
     }
+
     return nullptr;
 }
 
 static FileDefinition* get_definition(char* full_path) {
     FileDefinition* definition = is_open(full_path);
+
     if (definition != nullptr) {
         return definition;
     }
@@ -43,44 +38,41 @@ static FileDefinition* get_definition(char* full_path) {
 
         linux_stat_t stat;
         if (linux_fstat(fd, &stat) < 0) panic("failed to stat file");
-        size_t size = stat.st_size;
+        s64 size = stat.st_size;
 
         u8* buf = ARENA_ALLOC(u8, size + 1);
-        if (linux_read(fd, buf, size) < 0) panic("failed to read file");
+        s64 bytes_read = linux_read(fd, buf, size) < 0;
+        if (bytes_read < 0) panic("failed to read file");
+        if (bytes_read < size) panic("partial read of file");
         linux_close(fd);
 
         buf[size] = '\0';
 
-        FileDefinition new_definition = {
-            .full_path = full_path,
-            .content = buf,
-            .size = size,
-        };
+        FileDefinition* new_definition = ARENA_ALLOC(FileDefinition, 1);
+        definition->full_path = full_path;
+        definition->content = buf;
+        definition->size = size;
 
         vector_push(&g_file_definitions, new_definition);
-        return vector_back(g_file_definitions);
+        return new_definition;
     }
 }
 
-ByteVector read(char* full_path, PPToken* pptok) {
+ByteVector* read(char* full_path, PPToken* inclusion_trigger) {
     FileDefinition* definition = get_definition(full_path);
 
-    FileInclusion inclusion = {
-        .definition = definition,
-        .pptok = pptok,
-    };
+    FileInclusion* inclusion = ARENA_ALLOC(FileInclusion, 1);
+    inclusion->definition = definition;
+    inclusion->inclusion_trigger = inclusion_trigger;
 
-    vector_push(&g_file_inclusions, inclusion);
-
-    ByteVector bytes = {0};
+    ByteVector* bytes = ARENA_ALLOC(ByteVector, 1);
     for (size_t i = 0; i < definition->size; ++i) {
-        Byte byte = {
-            .value = definition->content[i],
-            .inclusion = vector_back(g_file_inclusions),
-            .offset = i,
-        };
+        Byte* byte = ARENA_ALLOC(Byte, 1);
+        byte->value = definition->content[i];
+        byte->origin = inclusion;
+        byte->offset = i;
 
-        vector_push(&bytes, byte);
+        vector_push(bytes, byte);
     }
 
     return bytes;

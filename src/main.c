@@ -18,11 +18,11 @@ void expanded_token_print(ExpandedToken expanded_token) {
         "\x1b[97m",  // 7: Bright White
     };
 
-    if(expanded_token.invocation)
-    printf("%s", ANSI_FG_BRIGHT[expanded_token.kind % 8]);
+    if (expanded_token.invocation)
+        printf("%s", ANSI_FG_BRIGHT[expanded_token.kind % 8]);
     printf("%s", expanded_token.spelling);
-    if(expanded_token.invocation)
-    printf("%s", ANSI_RESET);
+    if (expanded_token.invocation)
+        printf("%s", ANSI_RESET);
 }
 
 s32 main(s32 argc, char** argv) {
@@ -30,11 +30,11 @@ s32 main(s32 argc, char** argv) {
 
     arena_init();
 
-    ByteVector bytes = read(argv[1], nullptr);
-    SourceCharVector source_chars = normalize(bytes);
-    SplicedCharVector spliced_chars = splice(source_chars);
-    PPTokenVector pptokens = tokenize(spliced_chars);
-    ExpandedTokenVector expanded_tokens = expand(pptokens);
+    ByteVector* bytes = read(argv[1], nullptr);
+    SourceCharVector* source_chars = normalize(bytes);
+    SplicedCharVector* spliced_chars = splice(source_chars);
+    PPTokenVector* pptokens = tokenize(spliced_chars);
+    ExpandedTokenVector expanded_tokens = expand(*pptokens);
 
     for (size_t i = 0; i < expanded_tokens.count; ++i) {
         // colors the tokens according to type
