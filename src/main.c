@@ -1,9 +1,9 @@
 #include <arena.h>
-#include <tokenizer.h>
 #include <io.h>
 #include <linux.h>
 #include <main.h>
 #include <panic.h>
+#include <tokenizer.h>
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) panic("no input file");
@@ -16,7 +16,7 @@ s32 main(s32 argc, char** argv) {
     PPTokenVector* pptokens = tokenize(spliced_chars);
 
     printf("|");
-    for(size_t i = 0; i< pptokens->count; ++i) {
+    for (size_t i = 0; i < pptokens->count; ++i) {
         printf("%s", pptokens->data[i]->spelling);
         printf("|");
     }

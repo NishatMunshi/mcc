@@ -2,8 +2,8 @@
 #include <io.h>
 #include <panic.h>
 #include <tokenizer.h>
-#include <vector.h>
 #include <unicode.h>
+#include <vector.h>
 
 typedef struct SplicedCharStream {
     SplicedCharVector* spliced_chars;
@@ -130,7 +130,7 @@ static PPToken* tokenize_header_name(SplicedCharStream* stream) {
     while (true) {
         SplicedChar* spliced_char = stream_peekahead(stream, 0);
 
-        if(delim_count >= 2) {
+        if (delim_count >= 2) {
             break;
         }
 
@@ -142,7 +142,7 @@ static PPToken* tokenize_header_name(SplicedCharStream* stream) {
             continue;
         }
 
-        else if(spliced_char->value == '\n') {
+        else if (spliced_char->value == '\n') {
             panic("newline inside header name");
         }
 
@@ -294,7 +294,7 @@ static PPToken* tokenize_whitespace(SplicedCharStream* stream) {
     while (true) {
         SplicedChar* spliced_char = stream_peekahead(stream, 0);
 
-        if(!is_inline_whitespace(spliced_char->value)) {
+        if (!is_inline_whitespace(spliced_char->value)) {
             break;
         }
 
@@ -308,70 +308,170 @@ static PPToken* tokenize_whitespace(SplicedCharStream* stream) {
     return pptoken_create(PP_WHITESPACE, origin);
 }
 
-static bool is_ident(u32 codepoint) {
-    return is_ident_nondigit(codepoint) || is_digit(codepoint);
+static bool is_valid_UCN(u32 codepoint) {
+    // 1. The Short Identifier Check (C23 Simplification)
+    if (codepoint <= 0x009F) {
+        return false;
+    }
+
+    // 2. The Surrogate Pair Check (Standard Constraint)
+    if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+        return false;
+    }
+
+    // 3. The Max Value Check (Standard Constraint)
+    if (codepoint > 0x10FFFF) {
+        return false;
+    }
+
+    return true;
+}
+
+u8 unicode_to_hex_digit(u32 codepoint) {
+    if(codepoint >= '0' && codepoint <= '9') {
+        return codepoint - '0';
+    }
+
+    if(codepoint >= 'a' && codepoint <= 'f') {
+        return codepoint - 'a';
+    }
+
+    if(codepoint >= 'A' && codepoint <= 'F') {
+        return codepoint - 'A';
+    }
+
+    panic("invalid hex digit");
+}
+
+u16 parse_hex_quad(u32 cp0, u32 cp1, u32 cp2, u32 cp3) {
+    u16 hex_digit_0 = unicode_to_hex_digit(cp0);
+    u16 hex_digit_1 = unicode_to_hex_digit(cp1);
+    u16 hex_digit_2 = unicode_to_hex_digit(cp2);
+    u16 hex_digit_3 = unicode_to_hex_digit(cp3);
+
+    return (hex_digit_0 << 12) | (hex_digit_1 << 8) | (hex_digit_2 << 4) | hex_digit_3;
+}
+
+static u32 parse_UCN(SplicedCharStream* stream) {
+    // grab 10 characters
+    u32 cp0 = stream_peekahead(stream, 0)->value;
+    u32 cp1 = stream_peekahead(stream, 1)->value;
+    u32 cp2 = stream_peekahead(stream, 2)->value;
+    u32 cp3 = stream_peekahead(stream, 3)->value;
+    u32 cp4 = stream_peekahead(stream, 4)->value;
+    u32 cp5 = stream_peekahead(stream, 5)->value;
+    u32 cp6 = stream_peekahead(stream, 6)->value;
+    u32 cp7 = stream_peekahead(stream, 7)->value;
+    u32 cp8 = stream_peekahead(stream, 8)->value;
+    u32 cp9 = stream_peekahead(stream, 9)->value;
+
+    if (cp0 != '\\') {
+        panic("invalid UCN found");
+    }
+
+    u32 codepoint = 0;
+
+    if (cp1 == 'u') {
+        codepoint = parse_hex_quad(cp2, cp3, cp4, cp5);
+    }
+
+    else if (cp1 == 'U') {
+        u16 first_half = parse_hex_quad(cp2, cp3, cp4, cp5);
+        u16 second_half = parse_hex_quad(cp6, cp7, cp8, cp9);
+        codepoint = ((u32)first_half << 16) | second_half;
+    }
+
+    if (!is_valid_UCN(codepoint)) {
+        panic("invalid UCN found");
+    }
+
+    return codepoint;
 }
 
 static PPToken* tokenize_identifier(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
     while (true) {
-        SplicedChar* spliced_char = stream_peekahead(stream, 0);
+        SplicedChar* sc0 = stream_peekahead(stream, 0);
+        u32 cp0 = sc0->value;
 
-        if (!is_ident(spliced_char->value)) {
-            break;
+        if (is_digit(cp0) || is_nondigit(cp0) || is_XID_Continue(cp0)) {
+            vector_push(origin, sc0);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else if (cp0 == '\\' && is_XID_Continue(parse_UCN(stream))) {
+            // consume the backslash and move on
+            vector_push(origin, sc0);
+            stream_consume(stream, 1);
+            continue;
         }
 
         else {
-            vector_push(origin, spliced_char);
-            stream_consume(stream, 1);
-            continue;
+            break;
         }
     }
 
     return pptoken_create(PP_IDENTIFIER, origin);
 }
 
-static bool is_pp_number(u32 codepoint) {
-    return is_ident(codepoint) || codepoint == '.';
-}
-
-static PPToken* tokenize_number(SplicedCharStream* stream) {
+static PPToken* tokenize_pp_number(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
+    SplicedChar* sc_start = stream_peekahead(stream, 0);
+    vector_push(origin, sc_start);
+    stream_consume(stream, 1);
+
     while (true) {
-        SplicedChar* curr_ptr = stream_peekahead(stream, 0);
-        SplicedChar* next_ptr = stream_peekahead(stream, 1);
+        SplicedChar* sc0 = stream_peekahead(stream, 0);
+        SplicedChar* sc1 = stream_peekahead(stream, 1);
+        u32 cp0 = sc0->value;
+        u32 cp1 = sc1->value;
 
-        u32 curr = curr_ptr->value;
-        u32 next = next_ptr->value;
-
-        if (curr == 0) {
-            break;
-        }
-
-        if ((curr == 'e' || curr == 'E' || curr == 'p' || curr == 'P') &&
-            (next == '+' || next == '-')) {
-            vector_push(origin, curr_ptr);
-            vector_push(origin, next_ptr);
+        if ((cp0 == 'e' || cp0 == 'E' || cp0 == 'p' || cp0 == 'P') && 
+            (cp1 == '+' || cp1 == '-')) {
+            vector_push(origin, sc0);
+            vector_push(origin, sc1);
             stream_consume(stream, 2);
             continue;
         }
 
-        if (curr == '\'' && is_pp_number(next)) {
-            vector_push(origin, curr_ptr);
-            vector_push(origin, next_ptr);
-            stream_consume(stream, 2);
-            continue;
-        }
-
-        if (is_pp_number(curr)) {
-            vector_push(origin, curr_ptr);
+        else if (cp0 == '.') {
+            vector_push(origin, sc0);
             stream_consume(stream, 1);
             continue;
         }
 
-        break;
+        else if (cp0 == '\'') {
+            if (is_digit(cp1) || is_nondigit(cp1) || is_XID_Continue(cp1)) {
+                vector_push(origin, sc0);
+                stream_consume(stream, 1);
+                continue;
+            } else {
+                // Trailing quote is not part of number
+                break;
+            }
+        }
+
+        // D. Digits & Identifiers (covers normal 'e' without sign too)
+        else if (is_digit(cp0) || is_nondigit(cp0) || is_XID_Continue(cp0)) {
+            vector_push(origin, sc0);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        // E. UCNs
+        // Same logic: eat backslash if UCN is valid ID char, let loop handle the rest
+        else if (cp0 == '\\' && is_XID_Continue(parse_UCN(stream))) {
+            vector_push(origin, sc0);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else {
+            break;
+        }
     }
 
     return pptoken_create(PP_NUMBER, origin);
@@ -565,10 +665,10 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
 
         // "string literals"
         else if ((cp0 == 'u' && cp1 == '8' && cp2 == '\"') ||
-            (cp0 == 'u' && cp1 == '\"') ||
-            (cp0 == 'U' && cp1 == '\"') ||
-            (cp0 == 'L' && cp1 == '\"') ||
-            (cp0 == '\"')) {
+                 (cp0 == 'u' && cp1 == '\"') ||
+                 (cp0 == 'U' && cp1 == '\"') ||
+                 (cp0 == 'L' && cp1 == '\"') ||
+                 (cp0 == '\"')) {
             pptoken = tokenize_string_literal(&stream);
         }
 
@@ -602,13 +702,25 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         }
 
         // identifiers
-        else if (is_ident_nondigit(cp0)) {
+        else if (cp0 == '\\' && (cp1 == 'u' || cp1 == 'U')) {
+            u32 codepoint = parse_UCN(&stream);
+
+            if (is_XID_Start(codepoint)) {
+                pptoken = tokenize_identifier(&stream);
+            }
+
+            else {
+                panic("invalid identifier found");
+            }
+        }
+
+        else if (is_nondigit(cp0) || is_XID_Start(cp0)) {
             pptoken = tokenize_identifier(&stream);
         }
 
         // pp numbers
         else if (is_digit(cp0) || (cp0 == '.' && is_digit(cp1))) {
-            pptoken = tokenize_number(&stream);
+            pptoken = tokenize_pp_number(&stream);
         }
 
         // punctuators and others
