@@ -1,7 +1,9 @@
 #include <arena.h>
+#include <io.h>
 #include <panic.h>
 #include <tokenizer.h>
 #include <vector.h>
+#include <unicode.h>
 
 typedef struct SplicedCharStream {
     SplicedCharVector* spliced_chars;
@@ -95,6 +97,69 @@ static PPToken* pptoken_create(PPTokenKind kind, SplicedCharVector* origin) {
     return pptoken;
 }
 
+static bool check_hash_include(PPTokenVector* pptokens) {
+    s64 i = pptokens->count - 1;
+
+    // 1. Skip WS backwards to find "include"
+    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
+    if (i >= 0 && !pptoken_is(pptokens->data[i], PP_IDENTIFIER, "include")) return false;
+
+    // 2. Skip WS backwards to find "#"
+    i--;
+    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
+    if (i >= 0 && !pptoken_is(pptokens->data[i], PP_PUNCTUATOR, "#")) return false;
+
+    // 3. We want to verify there is nothing BUT whitespace before the hash.
+    i--;
+    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
+
+    // 4. Now check the boundary
+    if (i < 0) return true;                                   // Start of file (Valid)
+    if (pptokens->data[i]->kind != PP_NEWLINE) return false;  // Found junk before hash (Invalid)
+
+    return true;
+}
+
+static PPToken* tokenize_header_name(SplicedCharStream* stream) {
+    SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
+
+    u32 left_delim = stream_peekahead(stream, 0)->value;
+    u32 right_delim = left_delim == '<' ? '>' : '\"';
+
+    size_t delim_count = 0;
+    while (true) {
+        SplicedChar* spliced_char = stream_peekahead(stream, 0);
+
+        if(delim_count >= 2) {
+            break;
+        }
+
+        if (spliced_char->value == left_delim ||
+            spliced_char->value == right_delim) {
+            delim_count++;
+            vector_push(origin, spliced_char);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else if(spliced_char->value == '\n') {
+            panic("newline inside header name");
+        }
+
+        else if (spliced_char->value == 0) {
+            panic("unterminated header name");
+        }
+
+        else {
+            vector_push(origin, spliced_char);
+            stream_consume(stream, 1);
+            continue;
+        }
+    }
+
+    return pptoken_create(PP_HEADERNAME, origin);
+}
+
 static PPToken* tokenize_string_literal(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
@@ -164,18 +229,18 @@ static PPToken* tokenize_character_constant(SplicedCharStream* stream) {
 static PPToken* tokenize_block_comment(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
-    while(true) {
+    while (true) {
         SplicedChar* a = stream_peekahead(stream, 0);
         SplicedChar* b = stream_peekahead(stream, 1);
 
-        if(a->value == '*' && b->value == '/') {
+        if (a->value == '*' && b->value == '/') {
             vector_push(origin, a);
             vector_push(origin, b);
             stream_consume(stream, 2);
             break;
         }
 
-        else if(a->value == 0) {
+        else if (a->value == 0) {
             panic("unterminated block comment");
         }
 
@@ -192,14 +257,14 @@ static PPToken* tokenize_block_comment(SplicedCharStream* stream) {
 static PPToken* tokenize_single_line_comment(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
-    while(true) {
+    while (true) {
         SplicedChar* spliced_char = stream_peekahead(stream, 0);
 
-        if(spliced_char->value == '\n') {
+        if (spliced_char->value == '\n') {
             break;
         }
 
-        else if(spliced_char->value == 0) {
+        else if (spliced_char->value == 0) {
             panic("no newline at the end of single line comment");
         }
 
@@ -213,17 +278,23 @@ static PPToken* tokenize_single_line_comment(SplicedCharStream* stream) {
     return pptoken_create(PP_WHITESPACE, origin);
 }
 
-static bool is_space(u32 codepoint) {
-    return codepoint == ' ' || codepoint == '\t' || codepoint == '\v' || codepoint == '\f';
+static PPToken* tokenize_newline(SplicedCharStream* stream) {
+    SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
+    SplicedChar* spliced_char = stream_peekahead(stream, 0);
+
+    vector_push(origin, spliced_char);
+    stream_consume(stream, 1);
+
+    return pptoken_create(PP_NEWLINE, origin);
 }
 
 static PPToken* tokenize_whitespace(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
-    while(true) {
+    while (true) {
         SplicedChar* spliced_char = stream_peekahead(stream, 0);
 
-        if(!is_space(spliced_char->value)) {
+        if(!is_inline_whitespace(spliced_char->value)) {
             break;
         }
 
@@ -237,14 +308,6 @@ static PPToken* tokenize_whitespace(SplicedCharStream* stream) {
     return pptoken_create(PP_WHITESPACE, origin);
 }
 
-static bool is_ident_nondigit(u32 c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c == '_');
-}
-
-static bool is_digit(u32 c) {
-    return (c >= '0' && c <= '9');
-}
-
 static bool is_ident(u32 codepoint) {
     return is_ident_nondigit(codepoint) || is_digit(codepoint);
 }
@@ -252,10 +315,10 @@ static bool is_ident(u32 codepoint) {
 static PPToken* tokenize_identifier(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
-    while(true) {
+    while (true) {
         SplicedChar* spliced_char = stream_peekahead(stream, 0);
 
-        if(!is_ident(spliced_char->value)) {
+        if (!is_ident(spliced_char->value)) {
             break;
         }
 
@@ -276,18 +339,18 @@ static bool is_pp_number(u32 codepoint) {
 static PPToken* tokenize_number(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
-    while(true) {
+    while (true) {
         SplicedChar* curr_ptr = stream_peekahead(stream, 0);
         SplicedChar* next_ptr = stream_peekahead(stream, 1);
 
         u32 curr = curr_ptr->value;
         u32 next = next_ptr->value;
 
-        if(curr == 0) {
+        if (curr == 0) {
             break;
         }
 
-        if ((curr == 'e' || curr == 'E' || curr == 'p' || curr == 'P') && 
+        if ((curr == 'e' || curr == 'E' || curr == 'p' || curr == 'P') &&
             (next == '+' || next == '-')) {
             vector_push(origin, curr_ptr);
             vector_push(origin, next_ptr);
@@ -314,56 +377,9 @@ static PPToken* tokenize_number(SplicedCharStream* stream) {
     return pptoken_create(PP_NUMBER, origin);
 }
 
-static bool check_hash_include(PPTokenVector* pptokens) {
-    s64 i = pptokens->count - 1;
-
-    // 1. Skip WS backwards to find "include"
-    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
-    if (i >= 0 && !pptoken_is(pptokens->data[i], PP_IDENTIFIER, "include")) return false;
-
-    // 2. Skip WS backwards to find "#"
-    i--;
-    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
-    if (i >= 0 && !pptoken_is(pptokens->data[i], PP_PUNCTUATOR, "#")) return false;
-
-    // 3. We want to verify there is nothing BUT whitespace before the hash.
-    i--;
-    while (i >= 0 && pptokens->data[i]->kind == PP_WHITESPACE) i--;
-
-    // 4. Now check the boundary
-    if (i < 0) return true;                                 // Start of file (Valid)
-    if (pptokens->data[i]->kind != PP_NEWLINE) return false;  // Found junk before hash (Invalid)
-
-    return true;
-}
-
-static PPToken* tokenize_header_name(SplicedCharStream* stream) {
-    SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
-
-    while(true) {
-        SplicedChar* spliced_char = stream_peekahead(stream, 0);
-
-        if(spliced_char->value == '>') {
-            break;
-        }
-
-        else if(spliced_char->value == 0) {
-            panic("unterminated header name");
-        }
-
-        else {
-            vector_push(origin, spliced_char);
-            stream_consume(stream, 1);
-            continue;
-        }
-    }
-
-    return pptoken_create(PP_HEADERNAME, origin);
-}
-
 static PPToken* tokenize_punctuator(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
-    
+
     // Peek ahead to max possible punctuator length (4 for %:%:)
     SplicedChar* sc0 = stream_peekahead(stream, 0);
     SplicedChar* sc1 = stream_peekahead(stream, 1);
@@ -380,90 +396,128 @@ static PPToken* tokenize_punctuator(SplicedCharStream* stream) {
 
     switch (a) {
         // --- 1. The Singles ---
-        case '[': case ']': case '(': case ')': 
-        case '{': case '}': case '?': case ';': 
-        case '~': case ',':
+        case '[':
+        case ']':
+        case '(':
+        case ')':
+        case '{':
+        case '}':
+        case '?':
+        case ';':
+        case '~':
+        case ',':
             len = 1;
             break;
 
         // --- 2. Colon group ---
         case ':':
-            if (b == '>') len = 2;      // :> (Digraph ])
-            else if (b == ':') len = 2; // :: (C23)
-            else len = 1;
+            if (b == '>')
+                len = 2;  // :> (Digraph ])
+            else if (b == ':')
+                len = 2;  // :: (C23)
+            else
+                len = 1;
             break;
 
         // --- 3. Dot group ---
         case '.':
-            if (b == '.' && c == '.') len = 3; // ...
-            else len = 1;
+            if (b == '.' && c == '.')
+                len = 3;  // ...
+            else
+                len = 1;
             break;
 
         // --- 4. Plus group ---
         case '+':
-            if (b == '+' || b == '=') len = 2;
-            else len = 1;
+            if (b == '+' || b == '=')
+                len = 2;
+            else
+                len = 1;
             break;
 
         // --- 5. Minus group ---
         case '-':
-            if (b == '>' || b == '-' || b == '=') len = 2;
-            else len = 1;
+            if (b == '>' || b == '-' || b == '=')
+                len = 2;
+            else
+                len = 1;
             break;
 
         // --- 6. Ampersand group ---
         case '&':
-            if (b == '&' || b == '=') len = 2;
-            else len = 1;
+            if (b == '&' || b == '=')
+                len = 2;
+            else
+                len = 1;
             break;
 
         // --- 7. Pipe group ---
         case '|':
-            if (b == '|' || b == '=') len = 2;
-            else len = 1;
+            if (b == '|' || b == '=')
+                len = 2;
+            else
+                len = 1;
             break;
 
         // --- 8. Asterisk/Bang/Equals/Caret/Slash ---
-        case '*': case '!': case '=': case '^': case '/':
-            if (b == '=') len = 2;
-            else len = 1;
+        case '*':
+        case '!':
+        case '=':
+        case '^':
+        case '/':
+            if (b == '=')
+                len = 2;
+            else
+                len = 1;
             break;
 
         // --- 9. Hash group ---
         case '#':
-            if (b == '#') len = 2; // ##
-            else len = 1;
+            if (b == '#')
+                len = 2;  // ##
+            else
+                len = 1;
             break;
 
         // --- 10. Less Than group ---
         case '<':
             if (b == '<') {
-                if (c == '=') len = 3; // <<=
-                else len = 2;          // <<
-            }
-            else if (b == '=' || b == ':' || b == '%') len = 2; // <= or <: or <%
-            else len = 1;
+                if (c == '=')
+                    len = 3;  // <<=
+                else
+                    len = 2;  // <<
+            } else if (b == '=' || b == ':' || b == '%')
+                len = 2;  // <= or <: or <%
+            else
+                len = 1;
             break;
 
         // --- 11. Greater Than group ---
         case '>':
             if (b == '>') {
-                if (c == '=') len = 3; // >>=
-                else len = 2;          // >>
-            }
-            else if (b == '=') len = 2; // >=
-            else len = 1;
+                if (c == '=')
+                    len = 3;  // >>=
+                else
+                    len = 2;  // >>
+            } else if (b == '=')
+                len = 2;  // >=
+            else
+                len = 1;
             break;
 
         // --- 12. Percent group ---
         case '%':
-            if (b == '=') len = 2;      // %=
-            else if (b == '>') len = 2; // %>
+            if (b == '=')
+                len = 2;  // %=
+            else if (b == '>')
+                len = 2;  // %>
             else if (b == ':') {
-                if (c == '%' && d == ':') len = 4; // %:%: (Digraph ##)
-                else len = 2;                      // %:   (Digraph #)
-            }
-            else len = 1;
+                if (c == '%' && d == ':')
+                    len = 4;  // %:%: (Digraph ##)
+                else
+                    len = 2;  // %:   (Digraph #)
+            } else
+                len = 1;
             break;
 
         // --- Fallback ---
@@ -487,7 +541,7 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         .spliced_chars = spliced_chars,
         .current_index = 0,
     };
-    
+
     PPTokenVector* pptokens = ARENA_ALLOC(PPTokenVector, 1);
     while (true) {
         SplicedChar* sc0 = stream_peekahead(&stream, 0);
@@ -498,25 +552,32 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         u32 cp1 = sc1->value;
         u32 cp2 = sc2->value;
 
-        if(cp0 == 0) {
+        if (cp0 == 0) {
             break;
         }
 
         PPToken* pptoken = nullptr;
 
+        // header names
+        if ((cp0 == '<' || cp0 == '\"') && check_hash_include(pptokens)) {
+            pptoken = tokenize_header_name(&stream);
+        }
+
         // "string literals"
-        if ((cp0 == 'u' && cp1 == '8' && cp2 == '\"') ||
+        else if ((cp0 == 'u' && cp1 == '8' && cp2 == '\"') ||
             (cp0 == 'u' && cp1 == '\"') ||
             (cp0 == 'U' && cp1 == '\"') ||
-            (cp0 == 'L' && cp1 == '\"')) {
+            (cp0 == 'L' && cp1 == '\"') ||
+            (cp0 == '\"')) {
             pptoken = tokenize_string_literal(&stream);
         }
 
         // 'character constants'
         else if ((cp0 == 'u' && cp1 == '8' && cp2 == '\'') ||
-            (cp0 == 'u' && cp1 == '\'') ||
-            (cp0 == 'U' && cp1 == '\'') ||
-            (cp0 == 'L' && cp1 == '\'')) {
+                 (cp0 == 'u' && cp1 == '\'') ||
+                 (cp0 == 'U' && cp1 == '\'') ||
+                 (cp0 == 'L' && cp1 == '\'') ||
+                 (cp0 == '\'')) {
             pptoken = tokenize_character_constant(&stream);
         }
 
@@ -532,13 +593,11 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
 
         // newlines
         else if (cp0 == '\n') {
-            SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
-            vector_push(origin, sc0);
-            pptoken = pptoken_create(PP_NEWLINE, origin);
+            pptoken = tokenize_newline(&stream);
         }
 
         // whitespace
-        else if (is_space(cp0)) {
+        else if (is_inline_whitespace(cp0)) {
             pptoken = tokenize_whitespace(&stream);
         }
 
@@ -550,11 +609,6 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
         // pp numbers
         else if (is_digit(cp0) || (cp0 == '.' && is_digit(cp1))) {
             pptoken = tokenize_number(&stream);
-        }
-
-        // header names
-        else if (cp0 == '<' && check_hash_include(pptokens)) {
-            pptoken = tokenize_header_name(&stream);
         }
 
         // punctuators and others

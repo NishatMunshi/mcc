@@ -41,7 +41,7 @@ static FileDefinition* get_definition(char* full_path) {
         s64 size = stat.st_size;
 
         u8* buf = ARENA_ALLOC(u8, size + 1);
-        s64 bytes_read = linux_read(fd, buf, size) < 0;
+        s64 bytes_read = linux_read(fd, buf, size);
         if (bytes_read < 0) panic("failed to read file");
         if (bytes_read < size) panic("partial read of file");
         linux_close(fd);
@@ -49,9 +49,9 @@ static FileDefinition* get_definition(char* full_path) {
         buf[size] = '\0';
 
         FileDefinition* new_definition = ARENA_ALLOC(FileDefinition, 1);
-        definition->full_path = full_path;
-        definition->content = buf;
-        definition->size = size;
+        new_definition->full_path = full_path;
+        new_definition->content = buf;
+        new_definition->size = size;
 
         vector_push(&g_file_definitions, new_definition);
         return new_definition;

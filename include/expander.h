@@ -29,7 +29,7 @@ typedef struct PPTokenVectorVector {
 
 typedef struct MacroInvocation {
     MacroDefinition* definition;
-    
+
     PPToken* origin;
     PPTokenVectorVector* args;
 } MacroInvocation;
