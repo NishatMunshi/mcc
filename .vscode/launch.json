@@ -6,7 +6,7 @@
             "type": "lldb",       // CHANGED: "cppdbg" -> "lldb"
             "request": "launch",
             "program": "${workspaceFolder}/mcc",
-            "args": ["./src/main.c"],
+            "args": ["./tokenizer_torture.c"],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Make Build"
         }

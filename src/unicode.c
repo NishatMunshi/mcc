@@ -1588,7 +1588,6 @@ bool is_inline_whitespace(u32 codepoint) {
 
 bool is_hex_digit(u32 codepoint) {
     return (codepoint >= '0' && codepoint <= '9') ||
-    (codepoint >= 'a' && codepoint <= 'f') ||
-    (codepoint >= 'A' && codepoint <= 'F');
+           (codepoint >= 'a' && codepoint <= 'f') ||
+           (codepoint >= 'A' && codepoint <= 'F');
 }
-

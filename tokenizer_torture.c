@@ -1,107 +1,114 @@
-/* * tokenizer_torture.c
- * A stress test for C23 Phase 3 Tokenization
- */
+// tokenizer_torture.c
 
-// =========================================================
-// TEST 1: UCN Normalization & Equivalence (Section 6.4.2.1)
-// =========================================================
-/* The compiler must see these as identical identifiers.
-   Your lexer should produce TOK_IDENTIFIER for both, and 
-   their 'spelling' (semantic value) must be identical bytes.
+// ---------------------------------------------------------
+// TEST 1: The "Greedy Dot" (Section 6.4.8)
+// ---------------------------------------------------------
+/* C23 Definition: pp-number includes '.' 
+   Therefore, a pp-number consumes dots greedily.
+   
+   Input:   1...
+   Result:  [PP_NUMBER "1..."] 
+   (Yes, this is a single valid token. It fails Phase 7 parsing, but passes Phase 3).
 */
-#define \u03C0 3.14159   // Defines PI
-float val = π;           // Uses PI (Raw UTF-8)
-
-// Mixed usage in one identifier (Valid in C23)
-int f\u006Fo = 1;        // Spelling: "foo"
-int \u0066oo = 2;        // Spelling: "foo" (Redeclaration error in parser, but same ID)
+1...
 
 
-// =========================================================
-// TEST 2: UCNs in String Literals (Phase 5 deferral)
-// =========================================================
-/* Your lexer MUST NOT decode these. 
-   Spelling must preserve the 6 characters: \ u 0 0 6 1
+// ---------------------------------------------------------
+// TEST 2: The "Greedy Exponent" (Section 6.4.8)
+// ---------------------------------------------------------
+/*
+   Input:   1.0e+f
+   Result:  [PP_NUMBER "1.0e+f"]
+   
+   Reasoning:
+   1. "1.0" matches number.
+   2. "e+" matches exponent part.
+   3. "f" is a valid identifier-continue (hex digit or just letter).
+   4. It gets eaten into the number.
 */
-char* raw = "\u0061"; 
+1.0e+f
 
 
-// =========================================================
-// TEST 3: The "Greedy" PP-Number (Section 6.4.8)
-// =========================================================
-/* These are all SINGLE tokens (PP_NUMBER).
-   Many are semantically invalid, but lexically valid.
+// ---------------------------------------------------------
+// TEST 3: The "Broken Exponent" 
+// ---------------------------------------------------------
+/*
+   Input:   1.0e+
+   Result:  [PP_NUMBER "1.0e+"]
+   
+   Reasoning:
+   The tokenizer consumes 'e' and '+' as a pair. 
+   EOF or whitespace stops it immediately after.
 */
-
-// Standard Float
-0.123
-
-// The "Too Many Dots" Edge Case
-// Lexer must eat all of this as one token.
-1.2.3.4e+5 
-
-// Hex Float with Exponent
-0x1.fp-2 
-
-// Greedy Sign Consumption
-// This should be ONE token: 1e+
-// Because 'e' is followed by '+', it consumes it.
-// The parser will choke on 'f', but the lexer must eat the '+'
-1e+f 
-
-// The Digit Separator (C23)
-1'000'000    // Single Token
+1.0e+
 
 
-// =========================================================
-// TEST 4: Digit Separator Edge Cases
-// =========================================================
-
-// Valid separator usage
-0xDEAD'BEEF  // Single Token
-
-// Trailing Quote Trap
-// This is NOT a separator because it's not followed by a digit/nondigit.
-// Should be: PP_NUMBER(123) followed by PUNCT(')
-123' 
-
-
-// =========================================================
-// TEST 5: Header Names vs. Less Than
-// =========================================================
-
-// Context: #include
-#include <stdio.h>      // Token: HEADER_NAME(<stdio.h>)
-
-// Context: Normal code
-// Should be: PUNCT(<) IDENTIFIER(stdio) PUNCT(.) IDENTIFIER(h) PUNCT(>)
-int x = <stdio.h>; 
-
-
-// =========================================================
-// TEST 6: Maximal Munch (Operator Clashes)
-// =========================================================
-
-// "x plus plus plus plus plus y"
-// Tokens: ID(x) PUNCT(++) PUNCT(++) PUNCT(+) ID(y)
-x+++++y 
-
-// "Right Shift Assign" vs "Right Shift" + "Assign"
-// Token: PUNCT(>>=)
-x>>=1
-
-// Digraphs (C23 still supports them!)
-// <: is [ and :> is ]
-// Tokens: PUNCT([) PUNCT(])
-<::>
-
-
-// =========================================================
-// TEST 7: C23 Basic Character Set Exceptions
-// =========================================================
-/* $, @, and ` are now Basic Characters.
-   They cannot be UCN escaped.
-   But they can be used raw if the implementation allows.
+// ---------------------------------------------------------
+// TEST 4: The "Digit Separator" Trap
+// ---------------------------------------------------------
+/*
+   Input:   123''456
+   Result:  [PP_NUMBER "123"] [PUNCT "'"] [PUNCT "'"] [PP_NUMBER "456"]
+   
+   Reasoning:
+   1. "123" is consumed.
+   2. First ' is seen. 
+   3. Lookahead sees second '. Is it digit/nondigit? NO.
+   4. ' is NOT consumed. Token "123" ends.
+   5. First ' becomes a punctuator (or char constant start).
 */
-int $amount = 0;   // Valid Identifier (usually extension, but lexically ID)
-int @ignored = 0;  // Often used in Objective-C, but strictly usually invalid ID char
+123''456
+
+
+// ---------------------------------------------------------
+// TEST 5: The "Identifier Normalization" (Section 6.4.2.1)
+// ---------------------------------------------------------
+/*
+   Input:   caf\u00E9
+   Result:  [PP_IDENTIFIER "café"]
+   
+   Reasoning:
+   Your tokenizer MUST decode \u00E9 to UTF-8 bytes (0xC3 0xA9).
+   The spelling of this token must be identical to the raw "café".
+*/
+int caf\u00E9 = 1;
+int café = 1; // These should be the same identifier hash.
+
+
+// ---------------------------------------------------------
+// TEST 6: The "Operator Smash"
+// ---------------------------------------------------------
+/*
+   Input:   x+++++y
+   Result:  [ID "x"] [PUNCT "++"] [PUNCT "++"] [PUNCT "+"] [ID "y"]
+*/
+x+++++y
+
+
+// ---------------------------------------------------------
+// TEST 7: The "Header Name" Context
+// ---------------------------------------------------------
+/*
+   Input:   #include <foo.h>
+   Result:  [PUNCT "#"] [ID "include"] [HEADER_NAME "<foo.h>"]
+*/
+#include <foo.h>
+
+/*
+   Input:   x <foo.h>
+   Result:  [ID "x"] [PUNCT "<"] [ID "foo"] [PUNCT "."] [ID "h"] [PUNCT ">"]
+*/
+x <foo.h>
+
+
+// ---------------------------------------------------------
+// TEST 8: The "Crash Me" (Constraint Violation)
+// ---------------------------------------------------------
+/*
+   Input:   \u0061
+   Result:  PANIC (or Error)
+   
+   Reasoning:
+   0x61 is 'a'. It is in the Basic Character Set.
+   Using it as a UCN is forbidden. Your parse_UCN should fail.
+*/

@@ -44,53 +44,183 @@ static void stream_consume(SplicedCharStream* stream, size_t count) {
     }
 }
 
+static bool is_valid_UCN(u32 codepoint) {
+    // 1. The Short Identifier Check (C23 Simplification)
+    if (codepoint <= 0x009F) {
+        return false;
+    }
+
+    // 2. The Surrogate Pair Check (Standard Constraint)
+    if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+        return false;
+    }
+
+    // 3. The Max Value Check (Standard Constraint)
+    if (codepoint > 0x10FFFF) {
+        return false;
+    }
+
+    return true;
+}
+
+u8 unicode_to_hex_digit(u32 codepoint) {
+    if (codepoint >= '0' && codepoint <= '9') {
+        return codepoint - '0';
+    }
+
+    if (codepoint >= 'a' && codepoint <= 'f') {
+        return codepoint - 'a' + 0xa;
+    }
+
+    if (codepoint >= 'A' && codepoint <= 'F') {
+        return codepoint - 'A' + 0xA;
+    }
+
+    panic("invalid hex digit");
+}
+
+u16 parse_hex_quad(u32 cp0, u32 cp1, u32 cp2, u32 cp3) {
+    u16 hex_digit_0 = unicode_to_hex_digit(cp0);
+    u16 hex_digit_1 = unicode_to_hex_digit(cp1);
+    u16 hex_digit_2 = unicode_to_hex_digit(cp2);
+    u16 hex_digit_3 = unicode_to_hex_digit(cp3);
+
+    return (hex_digit_0 << 12) | (hex_digit_1 << 8) | (hex_digit_2 << 4) | hex_digit_3;
+}
+
+static u32 peek_UCN(SplicedCharStream* stream) {
+    // grab 10 characters
+    u32 cp0 = stream_peekahead(stream, 0)->value;
+    u32 cp1 = stream_peekahead(stream, 1)->value;
+    u32 cp2 = stream_peekahead(stream, 2)->value;
+    u32 cp3 = stream_peekahead(stream, 3)->value;
+    u32 cp4 = stream_peekahead(stream, 4)->value;
+    u32 cp5 = stream_peekahead(stream, 5)->value;
+    u32 cp6 = stream_peekahead(stream, 6)->value;
+    u32 cp7 = stream_peekahead(stream, 7)->value;
+    u32 cp8 = stream_peekahead(stream, 8)->value;
+    u32 cp9 = stream_peekahead(stream, 9)->value;
+
+    if (cp0 != '\\') {
+        panic("invalid UCN found");
+    }
+
+    u32 codepoint = 0;
+
+    if (cp1 == 'u') {
+        codepoint = parse_hex_quad(cp2, cp3, cp4, cp5);
+    }
+
+    else if (cp1 == 'U') {
+        u16 first_half = parse_hex_quad(cp2, cp3, cp4, cp5);
+        u16 second_half = parse_hex_quad(cp6, cp7, cp8, cp9);
+        codepoint = ((u32)first_half << 16) | second_half;
+    }
+
+    if (!is_valid_UCN(codepoint)) {
+        printf("here, %c%c%c%c%c%c\n", cp0, cp1, cp2, cp3, cp4, cp5);
+        panic("invalid UCN found");
+    }
+
+    return codepoint;
+}
+
+typedef struct UTF8 {
+    size_t len;
+    u8 bytes[4];
+} UTF8;
+
+UTF8 UTF32_to_UTF8(u32 codepoint) {
+    UTF8 utf8 = {0};
+
+    if (codepoint <= 0x7f) {
+        utf8.bytes[utf8.len++] = (char)codepoint;
+    }
+
+    else if (codepoint <= 0x7ff) {
+        utf8.bytes[utf8.len++] = (char)(0xC0 | (codepoint >> 6));
+        utf8.bytes[utf8.len++] = (char)(0x80 | (codepoint & 0x3F));
+    }
+
+    else if (codepoint <= 0xffff) {
+        utf8.bytes[utf8.len++] = (char)(0xE0 | (codepoint >> 12));
+        utf8.bytes[utf8.len++] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
+        utf8.bytes[utf8.len++] = (char)(0x80 | (codepoint & 0x3F));
+    }
+
+    else if (codepoint <= 0x10ffff) {
+        utf8.bytes[utf8.len++] = (char)(0xF0 | (codepoint >> 18));
+        utf8.bytes[utf8.len++] = (char)(0x80 | ((codepoint >> 12) & 0x3F));
+        utf8.bytes[utf8.len++] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
+        utf8.bytes[utf8.len++] = (char)(0x80 | (codepoint & 0x3F));
+    }
+
+    else {
+        panic("invalid UTF-32");
+    }
+
+    return utf8;
+}
+
 /*
 Encodes a vector of spliced chars (UTF-32) into
 a single C-standard null terminated UTF-8 string
 */
-static char* encode_UTF8(SplicedCharVector* spliced_chars) {
-    // aggresive buffer (each u32 becoming 4 bytes)
+static char* encode_UTF8(SplicedCharVector* spliced_chars, bool should_encode_UCN) {
+    // aggresive buffer (each UTF-32 becoming 4 bytes)
     char* buf = ARENA_ALLOC(char, 4 * spliced_chars->count + 1);
+    SplicedCharStream stream = {
+        .spliced_chars = spliced_chars,
+        .current_index = 0,
+    };
 
     size_t buf_index = 0;
-    for (size_t i = 0; i < spliced_chars->count; ++i) {
-        u32 codepoint = spliced_chars->data[i]->value;
+    while (true) {
+        u32 cp0 = stream_peekahead(&stream, 0)->value;
+        u32 cp1 = stream_peekahead(&stream, 1)->value;
 
-        if (codepoint <= 0x7f) {
-            buf[buf_index++] = (char)codepoint;
+        if (cp0 == 0) {
+            break;
         }
 
-        else if (codepoint <= 0x7ff) {
-            buf[buf_index++] = (char)(0xC0 | (codepoint >> 6));
-            buf[buf_index++] = (char)(0x80 | (codepoint & 0x3F));
+        /*
+        If we encounter an UCN that needs encoding,
+        we record the U32 of it, and record how many
+        spliced chars to consume. Then pass it to 
+        the translator.
+        */
+        size_t to_consume = 1;
+        if (should_encode_UCN && cp0 == '\\') {
+            cp0 = peek_UCN(&stream);
+
+            if (cp1 == 'u') {
+                to_consume = 6;
+            } else if (cp1 == 'U') {
+                to_consume = 10;
+            }
         }
 
-        else if (codepoint <= 0xffff) {
-            buf[buf_index++] = (char)(0xE0 | (codepoint >> 12));
-            buf[buf_index++] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
-            buf[buf_index++] = (char)(0x80 | (codepoint & 0x3F));
+        UTF8 utf8 = UTF32_to_UTF8(cp0);
+        for(size_t i = 0; i < utf8.len; ++i) {
+            buf[buf_index++] = utf8.bytes[i];
         }
-
-        else if (codepoint <= 0x10ffff) {
-            buf[buf_index++] = (char)(0xF0 | (codepoint >> 18));
-            buf[buf_index++] = (char)(0x80 | ((codepoint >> 12) & 0x3F));
-            buf[buf_index++] = (char)(0x80 | ((codepoint >> 6) & 0x3F));
-            buf[buf_index++] = (char)(0x80 | (codepoint & 0x3F));
-        }
-
-        else {
-            panic("invalid UTF-32 code point");
-        }
+        stream_consume(&stream, to_consume);
     }
 
-    buf[buf_index++] = 0;
+    buf[buf_index] = 0;
     return buf;
 }
 
 static PPToken* pptoken_create(PPTokenKind kind, SplicedCharVector* origin) {
     PPToken* pptoken = ARENA_ALLOC(PPToken, 1);
     pptoken->kind = kind;
-    pptoken->spelling = encode_UTF8(origin);
+
+    bool should_encode_UCN = false;
+    if (kind == PP_IDENTIFIER || kind == PP_NUMBER) {
+        should_encode_UCN = true;
+    }
+
+    pptoken->spelling = encode_UTF8(origin, should_encode_UCN);
     pptoken->length = strlen(pptoken->spelling);
     pptoken->origin = origin;
 
@@ -308,86 +438,6 @@ static PPToken* tokenize_whitespace(SplicedCharStream* stream) {
     return pptoken_create(PP_WHITESPACE, origin);
 }
 
-static bool is_valid_UCN(u32 codepoint) {
-    // 1. The Short Identifier Check (C23 Simplification)
-    if (codepoint <= 0x009F) {
-        return false;
-    }
-
-    // 2. The Surrogate Pair Check (Standard Constraint)
-    if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
-        return false;
-    }
-
-    // 3. The Max Value Check (Standard Constraint)
-    if (codepoint > 0x10FFFF) {
-        return false;
-    }
-
-    return true;
-}
-
-u8 unicode_to_hex_digit(u32 codepoint) {
-    if(codepoint >= '0' && codepoint <= '9') {
-        return codepoint - '0';
-    }
-
-    if(codepoint >= 'a' && codepoint <= 'f') {
-        return codepoint - 'a';
-    }
-
-    if(codepoint >= 'A' && codepoint <= 'F') {
-        return codepoint - 'A';
-    }
-
-    panic("invalid hex digit");
-}
-
-u16 parse_hex_quad(u32 cp0, u32 cp1, u32 cp2, u32 cp3) {
-    u16 hex_digit_0 = unicode_to_hex_digit(cp0);
-    u16 hex_digit_1 = unicode_to_hex_digit(cp1);
-    u16 hex_digit_2 = unicode_to_hex_digit(cp2);
-    u16 hex_digit_3 = unicode_to_hex_digit(cp3);
-
-    return (hex_digit_0 << 12) | (hex_digit_1 << 8) | (hex_digit_2 << 4) | hex_digit_3;
-}
-
-static u32 parse_UCN(SplicedCharStream* stream) {
-    // grab 10 characters
-    u32 cp0 = stream_peekahead(stream, 0)->value;
-    u32 cp1 = stream_peekahead(stream, 1)->value;
-    u32 cp2 = stream_peekahead(stream, 2)->value;
-    u32 cp3 = stream_peekahead(stream, 3)->value;
-    u32 cp4 = stream_peekahead(stream, 4)->value;
-    u32 cp5 = stream_peekahead(stream, 5)->value;
-    u32 cp6 = stream_peekahead(stream, 6)->value;
-    u32 cp7 = stream_peekahead(stream, 7)->value;
-    u32 cp8 = stream_peekahead(stream, 8)->value;
-    u32 cp9 = stream_peekahead(stream, 9)->value;
-
-    if (cp0 != '\\') {
-        panic("invalid UCN found");
-    }
-
-    u32 codepoint = 0;
-
-    if (cp1 == 'u') {
-        codepoint = parse_hex_quad(cp2, cp3, cp4, cp5);
-    }
-
-    else if (cp1 == 'U') {
-        u16 first_half = parse_hex_quad(cp2, cp3, cp4, cp5);
-        u16 second_half = parse_hex_quad(cp6, cp7, cp8, cp9);
-        codepoint = ((u32)first_half << 16) | second_half;
-    }
-
-    if (!is_valid_UCN(codepoint)) {
-        panic("invalid UCN found");
-    }
-
-    return codepoint;
-}
-
 static PPToken* tokenize_identifier(SplicedCharStream* stream) {
     SplicedCharVector* origin = ARENA_ALLOC(SplicedCharVector, 1);
 
@@ -401,7 +451,7 @@ static PPToken* tokenize_identifier(SplicedCharStream* stream) {
             continue;
         }
 
-        else if (cp0 == '\\' && is_XID_Continue(parse_UCN(stream))) {
+        else if (cp0 == '\\' && is_XID_Continue(peek_UCN(stream))) {
             // consume the backslash and move on
             vector_push(origin, sc0);
             stream_consume(stream, 1);
@@ -429,7 +479,7 @@ static PPToken* tokenize_pp_number(SplicedCharStream* stream) {
         u32 cp0 = sc0->value;
         u32 cp1 = sc1->value;
 
-        if ((cp0 == 'e' || cp0 == 'E' || cp0 == 'p' || cp0 == 'P') && 
+        if ((cp0 == 'e' || cp0 == 'E' || cp0 == 'p' || cp0 == 'P') &&
             (cp1 == '+' || cp1 == '-')) {
             vector_push(origin, sc0);
             vector_push(origin, sc1);
@@ -463,7 +513,7 @@ static PPToken* tokenize_pp_number(SplicedCharStream* stream) {
 
         // E. UCNs
         // Same logic: eat backslash if UCN is valid ID char, let loop handle the rest
-        else if (cp0 == '\\' && is_XID_Continue(parse_UCN(stream))) {
+        else if (cp0 == '\\' && is_XID_Continue(peek_UCN(stream))) {
             vector_push(origin, sc0);
             stream_consume(stream, 1);
             continue;
@@ -703,7 +753,7 @@ PPTokenVector* tokenize(SplicedCharVector* spliced_chars) {
 
         // identifiers
         else if (cp0 == '\\' && (cp1 == 'u' || cp1 == 'U')) {
-            u32 codepoint = parse_UCN(&stream);
+            u32 codepoint = peek_UCN(&stream);
 
             if (is_XID_Start(codepoint)) {
                 pptoken = tokenize_identifier(&stream);
