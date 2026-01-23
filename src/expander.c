@@ -268,12 +268,105 @@ PPTokenVector* gather_macro_replacement_tokens(PPTokenStream* stream) {
     return replacement_list;
 }
 
+static void record_params(MacroDefinition* def, PPTokenStream* stream) {
+    // Eat the opening parenthesis.
+    stream_consume(stream, 1);
+    PPTokenVector* params = ARENA_ALLOC(PPTokenVector, 1);
+
+    // Check empty param list
+    stream_skip_whitespace(stream);
+    if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+        stream_consume(stream, 1);
+        def->params = params;
+        return;
+    }
+
+    while (true) {
+        stream_skip_whitespace(stream);
+
+        if (stream_peekahead(stream, 0)->kind == PP_NEWLINE ||
+            stream_peekahead(stream, 0)->kind == PP_EOF) {
+            panic("expected `)`");
+        }
+
+        if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, "...")) {
+            def->is_variadic = true;
+            stream_consume(stream, 1);
+            stream_skip_whitespace(stream);
+
+            if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+                panic("expected `)`");
+            }
+
+            else {
+                stream_consume(stream, 1);
+                break;
+            }
+        }
+
+        else if (stream_peekahead(stream, 0)->kind == PP_IDENTIFIER) {
+            vector_push(params, stream_peekahead(stream, 0));
+            stream_consume(stream, 1);
+            stream_skip_whitespace(stream);
+
+            if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ",")) {
+                stream_consume(stream, 1);
+                continue;
+            }
+
+            else if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+                stream_consume(stream, 1);
+                break;
+            }
+
+            else {
+                panic("expected `,` or `)`");
+            }
+        }
+
+        else {
+            panic("expected identifier or `...`");
+        }
+    }
+
+    def->params = params;
+}
+
+static void record_function_like_macro(PPTokenStream* stream) {
+    MacroDefinition* def = ARENA_ALLOC(MacroDefinition, 1);
+
+    def->name = stream_peekahead(stream, 0)->spelling;
+    stream_consume(stream, 1);
+
+    def->is_function_like = true;
+    record_params(def, stream);
+
+    stream_skip_whitespace(stream);
+    def->replacement_list = gather_macro_replacement_tokens(stream);
+
+    vector_push(&g_expander_context.macro_definitions, def);
+    stream_skip_line(stream);
+}
+
+static void record_object_like_macro(PPTokenStream* stream) {
+    MacroDefinition* def = ARENA_ALLOC(MacroDefinition, 1);
+
+    def->name = stream_peekahead(stream, 0)->spelling;
+
+    stream_consume(stream, 1);
+    stream_skip_whitespace(stream);
+
+    def->replacement_list = gather_macro_replacement_tokens(stream);
+
+    vector_push(&g_expander_context.macro_definitions, def);
+    stream_skip_line(stream);
+}
+
 static void record_define(PPTokenStream* stream) {
     stream_consume(stream, 1);
     stream_skip_whitespace(stream);
 
     PPToken* macro_name_token = stream_peekahead(stream, 0);
-
     if (macro_name_token->kind != PP_IDENTIFIER) {
         panic("expected macro name after `#define`");
     }
@@ -283,14 +376,13 @@ static void record_define(PPTokenStream* stream) {
         panic("redefinition of macro");
     }
 
-    MacroDefinition* definition = ARENA_ALLOC(MacroDefinition, 1);
-    definition->name = strdup(macro_name_token->spelling);
-    definition->replacement_list = gather_macro_replacement_tokens(stream);
+    if (pptoken_is(stream_peekahead(stream, 1), PP_PUNCTUATOR, "(")) {
+        record_function_like_macro(stream);
+    }
 
-    vector_push(&g_expander_context.macro_definitions, definition);
-
-    // clean up
-    stream_skip_line(stream);
+    else {
+        record_object_like_macro(stream);
+    }
 }
 
 static void record_ifndef(PPTokenStream* stream) {
@@ -374,6 +466,215 @@ static ExpandedTokenVector* execute_directive(PPTokenStream* stream) {
     return ARENA_ALLOC(ExpandedTokenVector, 1);
 }
 
+static void stream_skip_whitespace_and_newline(PPTokenStream* stream) {
+    while (true) {
+        PPTokenKind kind = stream_peekahead(stream, 0)->kind;
+
+        if (kind == PP_WHITESPACE || kind == PP_NEWLINE) {
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else {
+            return;
+        }
+    }
+}
+
+static PPTokenVector* record_arg(PPTokenStream* stream) {
+    PPTokenVector* arg = ARENA_ALLOC(PPTokenVector, 1);
+
+    size_t paren_depth = 0;
+    while (true) {
+        PPToken* token = stream_peekahead(stream, 0);
+
+        if (token->kind == PP_EOF) {
+            panic("expected `)`");
+        }
+
+        if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth == 0) {
+            break;
+        }
+
+        if (pptoken_is(token, PP_PUNCTUATOR, ",") && paren_depth == 0) {
+            break;
+        }
+
+        if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth > 0) {
+            paren_depth--;
+            vector_push(arg, token);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        if (pptoken_is(token, PP_PUNCTUATOR, "(")) {
+            paren_depth++;
+            vector_push(arg, token);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        vector_push(arg, token);
+        stream_consume(stream, 1);
+        continue;
+    }
+
+    return arg;
+}
+
+static PPTokenVectorVector* record_args(PPTokenStream* stream) {
+    // Eat the opening parenthesis
+    stream_consume(stream, 1);
+    stream_skip_whitespace_and_newline(stream);
+
+    PPTokenVectorVector* args = ARENA_ALLOC(PPTokenVectorVector, 1);
+
+    // check the empty case
+    if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+        stream_consume(stream, 1);
+        return args;
+    }
+
+    while (true) {
+        stream_skip_whitespace_and_newline(stream);
+
+        PPTokenVector* arg = record_arg(stream);
+        vector_push(args, arg);
+
+        if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ",")) {
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+            stream_consume(stream, 1);
+            break;
+        }
+
+        else {
+            panic("expected `,` or `)`");
+        }
+    }
+
+    return args;
+}
+
+static ssize_t params_contains(PPTokenVector* params, PPToken* param) {
+    for (ssize_t i = 0; i < (ssize_t)params->count; ++i) {
+        if (pptoken_is(params->data[i], PP_IDENTIFIER, param->spelling)) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static PPTokenVector* replace_params(MacroDefinition* def, PPTokenVectorVector* args) {
+    PPTokenVector* template = def->replacement_list;
+    PPTokenVector* params = def->params;
+
+    PPTokenVector* new_pptokens = ARENA_ALLOC(PPTokenVector, 1);
+
+    for (size_t i = 0; i < template->count; ++i) {
+        PPToken* template_token = template->data[i];
+
+        if (template_token->kind != PP_IDENTIFIER) {
+            vector_push(new_pptokens, template_token);
+            continue;
+        }
+
+        // now we know it IS an identifier
+        ssize_t param_index = params_contains(params, template_token);
+
+        if (param_index == -1) {
+            // not a param, push it
+            vector_push(new_pptokens, template_token);
+            continue;
+        }
+
+        if (args->count < params->count) {
+            panic("too few arguments in macro invocation");
+        }
+
+        if (args->count > params->count && !def->is_variadic) {
+            panic("too many arguments in macro invocation");
+        }
+
+        PPTokenVector* arg = args->data[param_index];
+        vector_append(new_pptokens, arg);
+    }
+
+    return new_pptokens;
+}
+
+static ExpandedTokenVector* expand_function_like_macro(MacroDefinition* def, PPTokenStream* stream) {
+    PPToken* macro_name_token = stream_peekahead(stream, 0);
+    stream_consume(stream, 1);
+
+    MacroInvocation* invoc = ARENA_ALLOC(MacroInvocation, 1);
+    invoc->definition = def;
+    invoc->origin = macro_name_token;
+
+    stream_skip_whitespace_and_newline(stream);
+
+    if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, "(")) {
+        panic("expected `(`");
+    }
+
+    invoc->arguments = record_args(stream);
+
+    PPTokenVector* replacement_tokens = replace_params(def, invoc->arguments);
+
+    // rescan
+    ExpandedTokenVector* expanded_tokens = expand(replacement_tokens);
+
+    // Stamp the invocation instance
+    for (size_t i = 0; i < expanded_tokens->count; ++i) {
+        ExpandedToken* token = expanded_tokens->data[i];
+        if (token->invocation == nullptr) {
+            token->invocation = invoc;
+        }
+    }
+
+    return expanded_tokens;
+}
+
+static ExpandedTokenVector* expand_object_like_macro(MacroDefinition* def, PPTokenStream* stream) {
+    PPToken* macro_name_token = stream_peekahead(stream, 0);
+    stream_consume(stream, 1);
+
+    MacroInvocation* invoc = ARENA_ALLOC(MacroInvocation, 1);
+    invoc->definition = def;
+    invoc->origin = macro_name_token;
+
+    // rescan
+    ExpandedTokenVector* expanded_tokens = expand(def->replacement_list);
+
+    // Stamp the invocation instance
+    for (size_t i = 0; i < expanded_tokens->count; ++i) {
+        ExpandedToken* token = expanded_tokens->data[i];
+        if (token->invocation == nullptr) {
+            token->invocation = invoc;
+        }
+    }
+
+    return expanded_tokens;
+}
+
+static ExpandedTokenVector* expand_macro(PPTokenStream* stream) {
+    PPToken* macro_name_token = stream_peekahead(stream, 0);
+    char* macro_name = macro_name_token->spelling;
+    MacroDefinition* def = is_defined(macro_name);
+
+    if (def->is_function_like) {
+        return expand_function_like_macro(def, stream);
+    }
+
+    else {
+        return expand_object_like_macro(def, stream);
+    }
+}
+
 ExpandedTokenVector* expand(PPTokenVector* pptokens) {
     PPTokenStream stream = {
         .pptokens = pptokens,
@@ -390,7 +691,7 @@ ExpandedTokenVector* expand(PPTokenVector* pptokens) {
         }
 
         // Directives must be checked even if we are skipping
-        // because it may be a conditional directive
+        // because it may be a conditional directive,
         if (pptoken_is(pptoken, PP_PUNCTUATOR, "#") && stream_is_it_start_of_line(&stream)) {
             ExpandedTokenVector* new_expanded_tokens = execute_directive(&stream);
             vector_append(expanded_tokens, new_expanded_tokens);
@@ -399,22 +700,29 @@ ExpandedTokenVector* expand(PPTokenVector* pptokens) {
 
         ConditionalState current_conditonal_state = conditional_stack_top(&g_expander_context.conditional_stack);
 
-        if (current_conditonal_state != COND_SKIPPING) {
-            // This is a normal pptoken. take it as it is.
-            ExpandedToken* expanded_token = ARENA_ALLOC(ExpandedToken, 1);
-            expanded_token->kind = pptoken->kind;
-            expanded_token->spelling = strdup(pptoken->spelling);
-            expanded_token->length = pptoken->length;
-            expanded_token->origin = pptoken;
-            expanded_token->invocation = nullptr;
-
-            vector_push(expanded_tokens, expanded_token);
-            stream_consume(&stream, 1);
-        }
-
-        else {
+        // If we are skipping, just skip and move on.
+        if (current_conditonal_state == COND_SKIPPING) {
             stream_skip_line(&stream);
+            continue;
         }
+
+        // Check if it is a macro invocation.
+        if (pptoken->kind == PP_IDENTIFIER && is_defined(pptoken->spelling)) {
+            ExpandedTokenVector* new_expanded_tokens = expand_macro(&stream);
+            vector_append(expanded_tokens, new_expanded_tokens);
+            continue;
+        }
+
+        // This is a normal pptoken. Take it as it is.
+        ExpandedToken* expanded_token = ARENA_ALLOC(ExpandedToken, 1);
+        expanded_token->kind = pptoken->kind;
+        expanded_token->spelling = strdup(pptoken->spelling);
+        expanded_token->length = pptoken->length;
+        expanded_token->origin = pptoken;
+        expanded_token->invocation = nullptr;
+
+        vector_push(expanded_tokens, expanded_token);
+        stream_consume(&stream, 1);
     }
 
     return expanded_tokens;

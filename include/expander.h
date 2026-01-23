@@ -5,13 +5,26 @@
 
 typedef struct MacroDefinition {
     char* name;
+
+    bool is_function_like;
+    PPTokenVector* params;
+    bool is_variadic;
+
     PPTokenVector* replacement_list;
 } MacroDefinition;
+
+typedef struct PPTokenVectorVector {
+    PPTokenVector** data;
+    size_t count;
+    size_t capacity;
+} PPTokenVectorVector;
 
 typedef struct MacroInvocation {
     MacroDefinition* definition;
 
     PPToken* origin;
+
+    PPTokenVectorVector* arguments;
 } MacroInvocation;
 
 typedef struct ExpandedToken {

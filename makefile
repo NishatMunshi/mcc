@@ -28,10 +28,13 @@ LDFLAGS := -nostdlib -no-pie
 SRC_DIR := src
 OBJ_DIR := build
 INC_DIR := include
+TEST_DIR := test
 
 # Recursively find all .c and .S (Assembly) files
 SRCS_C := $(shell find $(SRC_DIR) -name '*.c')
 SRCS_S := $(shell find $(SRC_DIR) -name '*.S')
+
+TESTS_C := $(SRCS_C:$(SRC_DIR)/%.c=$(TEST_DIR)/%.txt)
 
 # Generate object file paths in build/ mirroring src/ structure
 OBJS_C := $(SRCS_C:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
@@ -59,9 +62,11 @@ format:
 	@find $(SRC_DIR) $(INC_DIR) -name '*.[ch]' | xargs clang-format -i
 
 # Testing (Updated to pass the target binary itself if needed)
-test: $(TARGET)
-	@find . -name "*.[ch]" -not -name "test.c" -exec awk 'FNR==1{print ""}1' {} + > test.c
-	@./$(TARGET) test.c
+test: $(TESTS_C)
+
+$(TEST_DIR)/%.txt: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	./$(TARGET) $< > $@
 
 # Clean
 clean:
