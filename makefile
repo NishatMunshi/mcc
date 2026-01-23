@@ -66,7 +66,7 @@ test: $(TESTS_C)
 
 $(TEST_DIR)/%.txt: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	./$(TARGET) $< > $@
+	./(TARGET) $< > $@
 
 # Clean
 clean:
