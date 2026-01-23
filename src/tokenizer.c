@@ -186,7 +186,7 @@ static char* encode_UTF8(SplicedCharVector* spliced_chars, bool should_encode_UC
         /*
         If we encounter an UCN that needs encoding,
         we record the U32 of it, and record how many
-        spliced chars to consume. Then pass it to 
+        spliced chars to consume. Then pass it to
         the translator.
         */
         size_t to_consume = 1;
@@ -201,7 +201,7 @@ static char* encode_UTF8(SplicedCharVector* spliced_chars, bool should_encode_UC
         }
 
         UTF8 utf8 = UTF32_to_UTF8(cp0);
-        for(size_t i = 0; i < utf8.len; ++i) {
+        for (size_t i = 0; i < utf8.len; ++i) {
             buf[buf_index++] = utf8.bytes[i];
         }
         stream_consume(&stream, to_consume);

@@ -5,33 +5,13 @@
 
 typedef struct MacroDefinition {
     char* name;
-
-    bool is_function_like;
-    PPTokenVector* params;
-    bool is_variadic;
-
     PPTokenVector* replacement_list;
-
-    // flag to stop recursive macro expansion
-    // standard in C23
-    bool is_expanding;
-
-    // flag to help with #undef
-    bool is_undefined;
 } MacroDefinition;
-
-typedef struct PPTokenVectorVector {
-    PPTokenVector** data;
-
-    size_t count;
-    size_t capacity;
-} PPTokenVectorVector;
 
 typedef struct MacroInvocation {
     MacroDefinition* definition;
 
     PPToken* origin;
-    PPTokenVectorVector* args;
 } MacroInvocation;
 
 typedef struct ExpandedToken {

@@ -4,3 +4,5 @@ build/
 *.d
 *.out
 test.*
+compile_commands.json
+

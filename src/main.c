@@ -1,9 +1,9 @@
 #include <arena.h>
+#include <expander.h>
 #include <io.h>
 #include <linux.h>
 #include <main.h>
 #include <panic.h>
-#include <tokenizer.h>
 
 s32 main(s32 argc, char** argv) {
     if (argc < 2) panic("no input file");
@@ -14,11 +14,10 @@ s32 main(s32 argc, char** argv) {
     SourceCharVector* source_chars = normalize(bytes);
     SplicedCharVector* spliced_chars = splice(source_chars);
     PPTokenVector* pptokens = tokenize(spliced_chars);
+    ExpandedTokenVector* expanded_tokens = expand(pptokens);
 
-    printf("|");
-    for (size_t i = 0; i < pptokens->count; ++i) {
-        printf("%s", pptokens->data[i]->spelling);
-        printf("|");
+    for (size_t i = 0; i < expanded_tokens->count; ++i) {
+        printf("%s", expanded_tokens->data[i]->spelling);
     }
 
     printf("arena usage = %zu KiB\n", arena_usage_KiB());

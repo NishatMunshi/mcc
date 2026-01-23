@@ -12,7 +12,8 @@ typedef enum PPTokenKind {
     PP_CHAR,            // 'a'
     PP_HEADERNAME,      // <stdio.h>
     PP_OTHER,           // @
-    PP_NEWLINE
+    PP_NEWLINE,
+    PP_EOF
 } PPTokenKind;
 
 typedef struct PPToken {
