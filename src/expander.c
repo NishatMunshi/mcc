@@ -22,7 +22,6 @@ typedef struct ConditionalStack {
 typedef struct MacroDefinitionMap {
     MacroDefinition** data;
 
-
     size_t count;
     size_t capacity;
 } MacroDefinitionMap;
@@ -350,7 +349,7 @@ static ExpandedTokenVector* execute_directive(PPTokenStream* stream) {
         if (pptoken_is(directive_name_token, PP_IDENTIFIER, "include")) {
             return expand_include(stream);
         }
-        
+
         // else if (#embed, #undef)
         else if (pptoken_is(directive_name_token, PP_IDENTIFIER, "define")) {
             record_define(stream);
@@ -371,7 +370,7 @@ static ExpandedTokenVector* execute_directive(PPTokenStream* stream) {
         // null directive or nondirective. Just forget this line.
         stream_skip_line(stream);
     }
-    
+
     return ARENA_ALLOC(ExpandedTokenVector, 1);
 }
 
