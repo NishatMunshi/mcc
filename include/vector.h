@@ -74,10 +74,4 @@
         }                                                                                              \
     } while (0)
 
-#define vector_back(vec) \
-    (vec)->data[(vec)->count - 1]
-
-#define vector_pop(vec) \
-    (vec)->count = ((vec)->count == 0 ? 0 : (vec)->count - 1)
-
 #endif
