@@ -1,8 +1,8 @@
 #ifndef IO_H
 #define IO_H
 
-#include "types.h"
 #include "linux.h"
+#include "types.h"
 
 // Don't use directly, use fprintf macro
 // Only understands %c, %s, %zu, %x and %%
@@ -19,12 +19,12 @@ void __fprintf_impl(
 );
 
 #define fprintf(fd, format, ...) \
-    __fprintf_impl(0, 0, 0, 0, 0, 0, (fd), (format)__VA_OPT__(, )__VA_ARGS__)
+    __fprintf_impl(0, 0, 0, 0, 0, 0, (fd), (format)__VA_OPT__(, ) __VA_ARGS__)
 
 #define printf(format, ...) \
-    fprintf(LINUX_FD_STDOUT, (format)__VA_OPT__(, )__VA_ARGS__)
+    fprintf(LINUX_FD_STDOUT, (format)__VA_OPT__(, ) __VA_ARGS__)
 
 #define eprintf(format, ...) \
-    fprintf(LINUX_FD_STDERR, (format)__VA_OPT__(, )__VA_ARGS__)
+    fprintf(LINUX_FD_STDERR, (format)__VA_OPT__(, ) __VA_ARGS__)
 
 #endif  // IO_H

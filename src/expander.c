@@ -561,9 +561,11 @@ static PPTokenVector* record_va_args(PPTokenStream* stream) {
     return va_args;
 }
 
-static PPTokenVectorVector* record_args(MacroDefinition* def, PPTokenStream* stream) {
+static void record_args(MacroInvocation* invoc, PPTokenStream* stream) {
     // Eat the opening parenthesis
     stream_consume(stream, 1);
+
+    MacroDefinition* def = invoc->definition;
 
     PPTokenVectorVector* args = ARENA_ALLOC(PPTokenVectorVector, 1);
 
@@ -597,7 +599,9 @@ static PPTokenVectorVector* record_args(MacroDefinition* def, PPTokenStream* str
         }
 
         stream_consume(stream, 1);
-        return args;
+        invoc->arguments = args;
+        invoc->are_va_args_present = false;
+        return;
     }
 
     else {
@@ -606,16 +610,17 @@ static PPTokenVectorVector* record_args(MacroDefinition* def, PPTokenStream* str
 
             PPTokenVector* va_args = record_va_args(stream);
             vector_push(args, va_args);
+            invoc->are_va_args_present = true;
         }
 
         // Expect a `)`
         if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
-            printf("here\n");
             panic("expected `)`");
         }
 
         stream_consume(stream, 1);
-        return args;
+        invoc->arguments = args;
+        return;
     }
 }
 
@@ -678,7 +683,10 @@ static PPTokenVector* record_va_opt_tokens(PPTokenStream* stream) {
     return va_opt_tokens;
 }
 
-static PPTokenVector* replace_params(MacroDefinition* def, PPTokenVectorVector* args) {
+static PPTokenVector* replace_params(MacroInvocation* invoc) {
+    MacroDefinition* def = invoc->definition;
+    PPTokenVectorVector* args = invoc->arguments;
+
     PPTokenVector* template = def->replacement_list;
     PPTokenVector* params = def->params;
 
@@ -708,8 +716,14 @@ static PPTokenVector* replace_params(MacroDefinition* def, PPTokenVectorVector* 
                 panic("__VA_ARGS__ inside nonvariadic macro");
             }
 
-            vector_append(new_pptokens, args->data[args->count - 1]);
             stream_consume(&stream, 1);
+            if (invoc->are_va_args_present) {
+                vector_append(new_pptokens, args->data[args->count - 1]);
+            }
+
+            else {
+                continue;
+            }
         }
 
         else if (pptoken_is(template_token, PP_IDENTIFIER, "__VA_OPT__")) {
@@ -718,9 +732,7 @@ static PPTokenVector* replace_params(MacroDefinition* def, PPTokenVectorVector* 
             }
 
             PPTokenVector* va_opt_tokens = record_va_opt_tokens(&stream);
-            PPTokenVector* va_args = args->data[args->count - 1];
-
-            if (va_args->count > 0) {
+            if (invoc->are_va_args_present) {
                 vector_append(new_pptokens, va_opt_tokens);
             }
 
@@ -762,9 +774,9 @@ static ExpandedTokenVector* expand_function_like_macro(MacroDefinition* def, PPT
         panic("expected `(`");
     }
 
-    invoc->arguments = record_args(def, stream);
+    record_args(invoc, stream);
 
-    PPTokenVector* replacement_tokens = replace_params(def, invoc->arguments);
+    PPTokenVector* replacement_tokens = replace_params(invoc);
 
     // rescan
     ExpandedTokenVector* expanded_tokens = expand(replacement_tokens);

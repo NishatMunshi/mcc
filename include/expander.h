@@ -25,6 +25,7 @@ typedef struct MacroInvocation {
     PPToken* origin;
 
     PPTokenVectorVector* arguments;
+    bool are_va_args_present;
 } MacroInvocation;
 
 typedef struct ExpandedToken {
