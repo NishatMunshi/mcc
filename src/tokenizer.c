@@ -303,7 +303,11 @@ static PPToken* tokenize_string_literal(SplicedCharStream* stream) {
         }
 
         else if (spliced_char->value == '\\') {
-            stream_consume(stream, 2);
+            vector_push(origin, spliced_char);
+            stream_consume(stream, 1);
+            vector_push(origin, stream_peekahead(stream, 0));
+            stream_consume(stream, 1);
+            continue;
         }
 
         else if (spliced_char->value == '\n') {

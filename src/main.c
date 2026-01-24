@@ -17,8 +17,9 @@ s32 main(s32 argc, char** argv) {
     ExpandedTokenVector* expanded_tokens = expand(pptokens);
 
     for (size_t i = 0; i < expanded_tokens->count; ++i) {
-        printf(("%s"), (expanded_tokens->data[i]->spelling));
+        printf("%s", expanded_tokens->data[i]->spelling);
     }
+    printf("hello\n");
 
     return LINUX_EXIT_SUCCESS;
 }
