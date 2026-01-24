@@ -3,20 +3,20 @@
 #include <linux.h>
 #include <string.h>
 
-static void print_char(char c) {
-    linux_write(LINUX_FD_STDOUT, &c, 1);
+static void print_char(s32 fd, char c) {
+    linux_write(fd, &c, 1);
 }
 
-static void print_string(char* cstr) {
+static void print_string(s32 fd, char* cstr) {
     while (*(cstr) != '\0') {
-        print_char(*cstr);
+        print_char(fd, *cstr);
         cstr++;
     }
 }
 
-static void print_u64(u64 num, u64 base) {
+static void print_u64(s32 fd, u64 num, u64 base) {
     if (num == 0) {
-        print_char('0');
+        print_char(fd, '0');
         return;
     }
 
@@ -35,20 +35,21 @@ static void print_u64(u64 num, u64 base) {
 
     // now i = number of digits / hexits
     while (i > 0) {
-        print_char(buf[i - 1]);
+        print_char(fd, buf[i - 1]);
         i--;
     }
 
     return;
 }
 
-void __printf_impl(
+void __fprintf_impl(
     s64 rdi,
     s64 rsi,
     s64 rdx,
     s64 rcx,
     s64 r8,
     s64 r9,
+    s32 fd,
     char* format,
     ...
 ) {
@@ -65,7 +66,7 @@ void __printf_impl(
     size_t format_length = strlen(format);
     for (size_t i = 0; i < format_length;) {
         if (format[i] != '%') {
-            print_char(format[i]);
+            print_char(fd, format[i]);
             i++;
             continue;
         }
@@ -76,29 +77,29 @@ void __printf_impl(
 
         // character
         if (format[i + 1] == 'c') {
-            print_char(va_arg(ap, char));
+            print_char(fd, va_arg(ap, char));
             i += 2;
             continue;
         }
 
         // string
         if (format[i + 1] == 's') {
-            print_string(va_arg(ap, char*));
+            print_string(fd, va_arg(ap, char*));
             i += 2;
             continue;
         }
 
         // 64 bit pointer
         if (format[i + 1] == 'x') {
-            print_string("0x");
-            print_u64(va_arg(ap, u64), 16);
+            print_string(fd, "0x");
+            print_u64(fd, va_arg(ap, u64), 16);
             i += 2;
             continue;
         }
 
         // the literal '%' symbol
         if (format[i + 1] == '%') {
-            print_char('%');
+            print_char(fd, '%');
             i += 2;
             continue;
         }
@@ -109,13 +110,13 @@ void __printf_impl(
             i + 1 < strlen(format) &&
             format[i + 2] == 'u'
         ) {
-            print_u64(va_arg(ap, u64), 10);
+            print_u64(fd, va_arg(ap, u64), 10);
             i += 3;
             continue;
         }
 
         // if we fall here, we don't recognise the format specifier
-        print_char(format[i]);
+        print_char(fd, format[i]);
         i++;
         continue;
     }
