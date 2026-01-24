@@ -522,41 +522,101 @@ static PPTokenVector* record_arg(PPTokenStream* stream) {
     return arg;
 }
 
-static PPTokenVectorVector* record_args(PPTokenStream* stream) {
-    // Eat the opening parenthesis
-    stream_consume(stream, 1);
-    stream_skip_whitespace_and_newline(stream);
+static PPTokenVector* record_va_args(PPTokenStream* stream) {
+    PPTokenVector* va_args = ARENA_ALLOC(PPTokenVector, 1);
 
-    PPTokenVectorVector* args = ARENA_ALLOC(PPTokenVectorVector, 1);
-
-    // check the empty case
-    if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
-        stream_consume(stream, 1);
-        return args;
-    }
-
+    size_t paren_depth = 0;
     while (true) {
-        stream_skip_whitespace_and_newline(stream);
+        PPToken* token = stream_peekahead(stream, 0);
 
-        PPTokenVector* arg = record_arg(stream);
-        vector_push(args, arg);
+        if (token->kind == PP_EOF) {
+            panic("expected `)`");
+        }
 
-        if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ",")) {
+        else if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth == 0) {
+            break;
+        }
+
+        else if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth > 0) {
+            paren_depth--;
+            vector_push(va_args, token);
             stream_consume(stream, 1);
             continue;
         }
 
-        else if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+        else if (pptoken_is(token, PP_PUNCTUATOR, "(")) {
+            paren_depth++;
+            vector_push(va_args, token);
             stream_consume(stream, 1);
-            break;
+            continue;
         }
 
         else {
-            panic("expected `,` or `)`");
+            vector_push(va_args, token);
+            stream_consume(stream, 1);
+            continue;
         }
     }
 
-    return args;
+    return va_args;
+}
+
+static PPTokenVectorVector* record_args(MacroDefinition* def, PPTokenStream* stream) {
+    // Eat the opening parenthesis
+    stream_consume(stream, 1);
+
+    PPTokenVectorVector* args = ARENA_ALLOC(PPTokenVectorVector, 1);
+
+    // This loop grabs the first N - 1 REQUIRED args.
+    for (size_t i = 0; i + 1 < def->params->count; ++i) {
+        stream_skip_whitespace_and_newline(stream);
+
+        PPTokenVector* reqd_arg = record_arg(stream);
+        vector_push(args, reqd_arg);
+
+        if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ",")) {
+            panic("expected `,`");
+        }
+
+        stream_consume(stream, 1);
+        continue;
+    }
+
+    stream_skip_whitespace_and_newline(stream);
+
+    // Grab the last REQUIRED arg
+    if (args->count < def->params->count) {
+        PPTokenVector* last_reqd_arg = record_arg(stream);
+        vector_push(args, last_reqd_arg);
+    }
+
+    // branch depending on whether we expect va_args
+    if (!def->is_variadic) {
+        if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+            panic("expected `)`");
+        }
+
+        stream_consume(stream, 1);
+        return args;
+    }
+
+    else {
+        if (pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ",")) {
+            stream_consume(stream, 1);
+
+            PPTokenVector* va_args = record_va_args(stream);
+            vector_push(args, va_args);
+        }
+
+        // Expect a `)`
+        if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, ")")) {
+            printf("here\n");
+            panic("expected `)`");
+        }
+
+        stream_consume(stream, 1);
+        return args;
+    }
 }
 
 static ssize_t params_contains(PPTokenVector* params, PPToken* param) {
@@ -569,39 +629,120 @@ static ssize_t params_contains(PPTokenVector* params, PPToken* param) {
     return -1;
 }
 
+static PPTokenVector* record_va_opt_tokens(PPTokenStream* stream) {
+    stream_consume(stream, 1);  // eat __VA_OPT__
+    stream_skip_whitespace(stream);
+
+    if (!pptoken_is(stream_peekahead(stream, 0), PP_PUNCTUATOR, "(")) {
+        panic("expected `(`");
+    }
+
+    stream_consume(stream, 1);
+
+    PPTokenVector* va_opt_tokens = ARENA_ALLOC(PPTokenVector, 1);
+
+    size_t paren_depth = 0;
+    while (true) {
+        PPToken* token = stream_peekahead(stream, 0);
+
+        if (token->kind == PP_EOF) {
+            panic("expected `)`");
+        }
+
+        else if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth == 0) {
+            stream_consume(stream, 1);
+            break;
+        }
+
+        else if (pptoken_is(token, PP_PUNCTUATOR, ")") && paren_depth > 0) {
+            paren_depth--;
+            vector_push(va_opt_tokens, token);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else if (pptoken_is(token, PP_PUNCTUATOR, "(")) {
+            paren_depth++;
+            vector_push(va_opt_tokens, token);
+            stream_consume(stream, 1);
+            continue;
+        }
+
+        else {
+            vector_push(va_opt_tokens, token);
+            stream_consume(stream, 1);
+            continue;
+        }
+    }
+
+    return va_opt_tokens;
+}
+
 static PPTokenVector* replace_params(MacroDefinition* def, PPTokenVectorVector* args) {
     PPTokenVector* template = def->replacement_list;
     PPTokenVector* params = def->params;
 
     PPTokenVector* new_pptokens = ARENA_ALLOC(PPTokenVector, 1);
 
-    for (size_t i = 0; i < template->count; ++i) {
-        PPToken* template_token = template->data[i];
+    PPTokenStream stream = {
+        .pptokens = template,
+        .current_index = 0,
+    };
+
+    while (true) {
+        PPToken* template_token = stream_peekahead(&stream, 0);
+
+        if (template_token->kind == PP_EOF) {
+            break;
+        }
 
         if (template_token->kind != PP_IDENTIFIER) {
             vector_push(new_pptokens, template_token);
+            stream_consume(&stream, 1);
             continue;
         }
 
         // now we know it IS an identifier
-        ssize_t param_index = params_contains(params, template_token);
+        if (pptoken_is(template_token, PP_IDENTIFIER, "__VA_ARGS__")) {
+            if (!def->is_variadic) {
+                panic("__VA_ARGS__ inside nonvariadic macro");
+            }
 
-        if (param_index == -1) {
-            // not a param, push it
-            vector_push(new_pptokens, template_token);
-            continue;
+            vector_append(new_pptokens, args->data[args->count - 1]);
+            stream_consume(&stream, 1);
         }
 
-        if (args->count < params->count) {
-            panic("too few arguments in macro invocation");
+        else if (pptoken_is(template_token, PP_IDENTIFIER, "__VA_OPT__")) {
+            if (!def->is_variadic) {
+                panic("__VA_OPT__ inside nonvariadic macro");
+            }
+
+            PPTokenVector* va_opt_tokens = record_va_opt_tokens(&stream);
+            PPTokenVector* va_args = args->data[args->count - 1];
+
+            if (va_args->count > 0) {
+                vector_append(new_pptokens, va_opt_tokens);
+            }
+
+            else {
+                continue;
+            }
         }
 
-        if (args->count > params->count && !def->is_variadic) {
-            panic("too many arguments in macro invocation");
-        }
+        else {
+            ssize_t param_index = params_contains(params, template_token);
 
-        PPTokenVector* arg = args->data[param_index];
-        vector_append(new_pptokens, arg);
+            if (param_index == -1) {
+                // not a param, push it
+                vector_push(new_pptokens, template_token);
+                stream_consume(&stream, 1);
+                continue;
+            }
+
+            PPTokenVector* arg = args->data[param_index];
+            vector_append(new_pptokens, arg);
+            stream_consume(&stream, 1);
+        }
     }
 
     return new_pptokens;
@@ -621,7 +762,7 @@ static ExpandedTokenVector* expand_function_like_macro(MacroDefinition* def, PPT
         panic("expected `(`");
     }
 
-    invoc->arguments = record_args(stream);
+    invoc->arguments = record_args(def, stream);
 
     PPTokenVector* replacement_tokens = replace_params(def, invoc->arguments);
 
