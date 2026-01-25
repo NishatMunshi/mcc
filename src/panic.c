@@ -1,3 +1,4 @@
+#include <expander.h>
 #include <io.h>
 #include <linux.h>
 #include <panic.h>
@@ -11,7 +12,7 @@ Location byte_get_location(Byte* byte) {
 
     FileDefinition* def = byte->origin->definition;
     for (size_t i = 0; i < def->size; ++i) {
-        if (def->content[i] == byte->value) {
+        if (i == byte->offset) {
             break;
         }
 
@@ -101,4 +102,22 @@ void print_squiggles(size_t line, size_t col) {
     }
 
     eprintf("^\n");
+}
+
+void print_include_trace(FileInclusion* inclusion) {
+    if (inclusion->inclusion_trigger == nullptr) {
+        return;
+    }
+
+    PPToken* header_name_token = inclusion->inclusion_trigger;
+    SplicedChar* header_name_first_splicedchar = header_name_token->origin->data[0];
+    SourceChar* header_name_first_sourcechar = header_name_first_splicedchar->source_char;
+    Byte* header_name_first_byte = header_name_first_sourcechar->origin->data[0];
+    FileInclusion* parent_inclusion = header_name_first_byte->origin;
+
+    print_include_trace(parent_inclusion);
+
+    Location include_loc = byte_get_location(header_name_first_byte);
+
+    eprintf("In file included from %s:%zu:\n", include_loc.filename, include_loc.line);
 }

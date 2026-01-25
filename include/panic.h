@@ -30,9 +30,11 @@ typedef struct Location {
 Location byte_get_location(Byte* byte);
 void print_snippet(FileDefinition* def, size_t line);
 void print_squiggles(size_t line, size_t col);
+void print_include_trace(FileInclusion* inclusion);
 
 #define panic_byte(byte, format, ...)                          \
     do {                                                       \
+        print_include_trace((byte)->origin);                   \
         Location loc = byte_get_location((byte));              \
                                                                \
         print_header(loc, (format)__VA_OPT__(, ) __VA_ARGS__); \
