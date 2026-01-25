@@ -7,7 +7,8 @@ SplicedCharVector* splice(SourceCharVector* source_chars) {
     // check newline at end of file
     if (source_chars->count >= 1 &&
         source_chars->data[source_chars->count - 1]->value != '\n') {
-        panic("no newline at end of file");
+        panic_sourcechar(source_chars->data[source_chars->count - 1],
+                         "no newline at end of file");
     }
 
     /*
@@ -16,7 +17,8 @@ SplicedCharVector* splice(SourceCharVector* source_chars) {
     */
     if (source_chars->count >= 2 &&
         source_chars->data[source_chars->count - 2]->value == '\\') {
-        panic("backslash before last newline");
+        panic_sourcechar(source_chars->data[source_chars->count - 2],
+                         "backslash before last newline");
     }
 
     SplicedCharVector* spliced_chars = ARENA_ALLOC(SplicedCharVector, 1);

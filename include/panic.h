@@ -29,7 +29,7 @@ typedef struct Location {
 
 Location byte_get_location(Byte* byte);
 void print_snippet(FileDefinition* def, size_t line);
-void print_squiggles(size_t line, size_t col);
+void print_caret(size_t line, size_t col);
 void print_include_trace(FileInclusion* inclusion);
 
 #define panic_byte(byte, format, ...)                          \
@@ -39,9 +39,12 @@ void print_include_trace(FileInclusion* inclusion);
                                                                \
         print_header(loc, (format)__VA_OPT__(, ) __VA_ARGS__); \
         print_snippet((byte)->origin->definition, loc.line);   \
-        print_squiggles(loc.line, loc.col);                    \
+        print_caret(loc.line, loc.col);                    \
                                                                \
         linux_exit(LINUX_EXIT_FAILURE);                        \
     } while (0)
+
+#define panic_sourcechar(sourcechar, format, ...) \
+    panic_byte((sourcechar)->origin->data[0], (format)__VA_OPT__(, ) __VA_ARGS__)
 
 #endif  // PANIC_H

@@ -88,7 +88,7 @@ void print_snippet(FileDefinition* def, size_t line) {
     }
 }
 
-void print_squiggles(size_t line, size_t col) {
+void print_caret(size_t line, size_t col) {
     eprintf("  ");
 
     for (size_t i = 0; i < num_digits(line); ++i) {
