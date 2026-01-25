@@ -66,7 +66,7 @@ static SourceChar* normalize_2byte_sequence(ByteStream* stream) {
     u8 b1 = byte1->value;
 
     if ((b1 & 0xc0) != 0x80) {
-        panic("Invalid 2-byte UTF-8 sequence");
+        panic_byte(byte0, "invalid 2-byte UTF-8 sequence");
     }
 
     SourceChar* source_char = ARENA_ALLOC(SourceChar, 1);
@@ -89,7 +89,7 @@ static SourceChar* normalize_3byte_sequence(ByteStream* stream) {
     u8 b2 = byte2->value;
 
     if ((b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80) {
-        panic("Invalid 3-byte UTF-8 sequence");
+        panic_byte(byte0, "invalid 3-byte UTF-8 sequence");
     }
 
     SourceChar* source_char = ARENA_ALLOC(SourceChar, 1);
@@ -115,7 +115,7 @@ static SourceChar* normalize_4byte_sequence(ByteStream* stream) {
     u8 b3 = byte3->value;
 
     if ((b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80 || (b3 & 0xc0) != 0x80) {
-        panic("Invalid 4-byte UTF-8 sequence");
+        panic_byte(byte0, "invalid 4-byte UTF-8 sequence");
     }
 
     SourceChar* source_char = ARENA_ALLOC(SourceChar, 1);
@@ -139,29 +139,34 @@ SourceCharVector* normalize(ByteVector* bytes) {
 
     SourceCharVector* source_chars = ARENA_ALLOC(SourceCharVector, 1);
 
-    for (u8 current_byte = stream_peekahead(&stream, 0)->value;
-         current_byte != 0;
-         current_byte = stream_peekahead(&stream, 0)->value) {
+    for (Byte* byte = stream_peekahead(&stream, 0);
+         byte->value != 0;
+         byte = stream_peekahead(&stream, 0)) {
+        u8 byte_val = byte->value;
         SourceChar* source_char = nullptr;
 
-        if ((current_byte & 0x80) == 0x00) {
+        if (byte_val == '(') {
+            panic_byte(byte, "OMG! opening paren found!");
+        }
+
+        if ((byte_val & 0x80) == 0x00) {
             source_char = normalize_1byte_sequence(&stream);
         }
 
-        else if ((current_byte & 0xe0) == 0xc0) {
+        else if ((byte_val & 0xe0) == 0xc0) {
             source_char = normalize_2byte_sequence(&stream);
         }
 
-        else if ((current_byte & 0xf0) == 0xe0) {
+        else if ((byte_val & 0xf0) == 0xe0) {
             source_char = normalize_3byte_sequence(&stream);
         }
 
-        else if ((current_byte & 0xf8) == 0xf0) {
+        else if ((byte_val & 0xf8) == 0xf0) {
             source_char = normalize_4byte_sequence(&stream);
         }
 
         else {
-            panic("invalid UTF-8 detected");
+            panic_byte(byte, "invalid UTF-8 detected");
         }
 
         vector_push(source_chars, source_char);
