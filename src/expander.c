@@ -445,15 +445,18 @@ static ExpandedTokenVector* execute_directive(PPTokenStream* stream) {
         // else if (#embed, #undef)
         else if (pptoken_is(directive_name_token, PP_IDENTIFIER, "define")) {
             record_define(stream);
+            return ARENA_ALLOC(ExpandedTokenVector, 1);
         }
     }
 
     if (pptoken_is(directive_name_token, PP_IDENTIFIER, "ifndef")) {
         record_ifndef(stream);
+        return ARENA_ALLOC(ExpandedTokenVector, 1);
     }
 
     else if (pptoken_is(directive_name_token, PP_IDENTIFIER, "endif")) {
         record_endif(stream);
+        return ARENA_ALLOC(ExpandedTokenVector, 1);
     }
 
     // else if (#elifndef, #else ...)
@@ -461,9 +464,8 @@ static ExpandedTokenVector* execute_directive(PPTokenStream* stream) {
     else {
         // null directive or nondirective. Just forget this line.
         stream_skip_line(stream);
+        return ARENA_ALLOC(ExpandedTokenVector, 1);
     }
-
-    return ARENA_ALLOC(ExpandedTokenVector, 1);
 }
 
 static void stream_skip_whitespace_and_newline(PPTokenStream* stream) {
