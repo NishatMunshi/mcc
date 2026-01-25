@@ -145,10 +145,6 @@ SourceCharVector* normalize(ByteVector* bytes) {
         u8 byte_val = byte->value;
         SourceChar* source_char = nullptr;
 
-        if (byte_val == '(') {
-            panic_byte(byte, "OMG! opening paren found!");
-        }
-
         if ((byte_val & 0x80) == 0x00) {
             source_char = normalize_1byte_sequence(&stream);
         }
